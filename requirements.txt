@@ -1,0 +1,18 @@
+# Dependencias del extractor documental (OCR local, sin servicios en la nube).
+#
+# Instalacion recomendada (aislada del sistema operativo):
+#   python3 -m venv .venv
+#   .venv/bin/pip install --upgrade pip
+#   .venv/bin/pip install -r requirements.txt
+#
+# Nota: rapidocr descarga sus modelos ONNX dentro del paquete la primera vez.
+# Si el equipo no tiene internet en produccion, ver README (seccion "Modo offline").
+
+pymupdf==2.0              # lectura de PDF, render de paginas y extraccion de imagenes
+rapidocr==3.10.0          # OCR local (PP-OCRv6 small, ONNX Runtime)
+onnxruntime==1.31.0       # backend de inferencia de rapidocr
+pillow==13.0.0            # preprocesado de imagenes (binarizacion, upscale)
+python-docx==1.2.0        # generacion del informe en Word
+
+# Solo para desarrollo / pruebas
+pytest==8.4.2

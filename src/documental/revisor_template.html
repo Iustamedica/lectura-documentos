@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Revision de expediente - __TITULO__</title>
+<style>
+  :root { --azul:#1f3a5f; --gris:#f4f6f9; --borde:#d7dee8; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, "Segoe UI", Roboto, sans-serif; margin:0;
+         background:var(--gris); color:#1b1b1b; }
+  header { position:sticky; top:0; z-index:10; background:var(--azul); color:#fff;
+           padding:12px 20px; display:flex; gap:16px; align-items:center;
+           flex-wrap:wrap; box-shadow:0 2px 6px rgba(0,0,0,.2); }
+  header h1 { font-size:16px; margin:0; font-weight:600; }
+  header .spacer { flex:1; }
+  header button { background:#fff; color:var(--azul); border:0; border-radius:6px;
+                  padding:8px 12px; font-weight:600; cursor:pointer; }
+  header button:hover { background:#dbe6f5; }
+  header .stat { font-size:12px; opacity:.9; }
+  main { padding:20px; max-width:1100px; margin:0 auto; }
+  .doc { background:#fff; border:1px solid var(--borde); border-radius:10px;
+         margin-bottom:18px; overflow:hidden; }
+  .doc > h2 { margin:0; padding:12px 16px; font-size:15px; background:#e8eef7;
+              border-bottom:1px solid var(--borde); display:flex; gap:10px;
+              align-items:center; flex-wrap:wrap; }
+  .doc .meta { font-size:12px; color:#555; padding:8px 16px; background:#fafbfd; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; }
+  .alta { background:#dff3e4; color:#1e6b33; }
+  .media { background:#fdf1d8; color:#8a5a00; }
+  .baja { background:#fbdede; color:#b02a2a; }
+  .faltante { background:#e8e8e8; color:#666; }
+  table { width:100%; border-collapse:collapse; }
+  td, th { padding:6px 10px; border-bottom:1px solid #eef1f5; font-size:13px;
+           vertical-align:middle; }
+  th { text-align:left; width:200px; color:#33475b; font-weight:600; }
+  input[type=text] { width:100%; padding:5px 8px; border:1px solid var(--borde);
+                     border-radius:5px; font-size:13px; }
+  input[type=text]:focus { outline:2px solid #9db9dd; }
+  tr.critico th { color:#b02a2a; }
+  .raw { font-size:11px; color:#888; font-style:italic; max-width:280px; }
+  .imgwrap { padding:12px 16px; background:#fafbfd; }
+  .imgwrap img { max-width:100%; border:1px solid var(--borde); border-radius:6px; }
+  .editado { background:#eef9ef; }
+  footer { text-align:center; font-size:12px; color:#666; padding:24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Revision de expediente: __TITULO__</h1>
+  <span class="stat" id="stats"></span>
+  <span class="spacer"></span>
+  <button id="btn-exportar">Exportar JSON corregido</button>
+  <button id="btn-reset">Descartar cambios</button>
+</header>
+<main id="docs"></main>
+<footer>
+  Corrija los valores y exporte el JSON. Luego regenere el informe con:
+  <code>documental informe expediente_corregido.json --docx informe.docx</code>
+</footer>
+<script id="datos" type="application/json">__DATOS__</script>
+<script>
+const ETIQUETAS = __ETIQUETAS__;
+const CRITICOS = __CRITICOS__;
+const CAMPOS = __CAMPOS__;
+const MONTO = __MONTO__;
+const data = JSON.parse(document.getElementById('datos').textContent);
+const clave = 'revision-' + (data.carpeta || '').replace(/[^a-z0-9]/gi, '_');
+
+function guardado() {
+  try { return JSON.parse(localStorage.getItem(clave) || 'null'); } catch (e) { return null; }
+}
+
+function aplicarCambiosGuardados(doc) {
+  const prev = guardado();
+  if (!prev) return;
+  const guardadoDoc = prev.find(d => d.doc_id === doc.doc_id);
+  if (!guardadoDoc) return;
+  for (const nombre of CAMPOS) {
+    const campo = doc[nombre];
+    const previo = guardadoDoc[nombre];
+    if (campo && previo && previo.edited) {
+      campo.value = previo.value;
+      campo.edited = true;
+      campo.confidence = 'alta';
+    }
+  }
+}
+
+function badge(conf) {
+  return '<span class="badge ' + conf + '">' + conf + '</span>';
+}
+
+function escapar(texto) {
+  return String(texto === null || texto === undefined ? '' : texto)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function render() {
+  const contenedor = document.getElementById('docs');
+  contenedor.innerHTML = '';
+  let pendientes = 0;
+  data.documentos.forEach((doc, indice) => {
+    aplicarCambiosGuardados(doc);
+    const card = document.createElement('section');
+    card.className = 'doc';
+    const titulo = doc.titulo || (doc.tipo_documento && doc.tipo_documento.value) || doc.doc_id;
+    card.innerHTML =
+      '<h2>' + (indice + 1) + '. ' + escapar(titulo) + ' ' + badge(doc.confianza || 'media') +
+      ' <span class="stat">' + escapar(doc.source_file) + ' p.' + doc.page + '</span></h2>' +
+      '<div class="meta">Familia: ' + escapar(doc.familia) + ' | id: ' + escapar(doc.doc_id) + '</div>';
+    const tabla = document.createElement('table');
+    for (const nombre of CAMPOS) {
+      const campo = doc[nombre] || { value: '', confidence: 'faltante' };
+      const vacio = campo.value === null || campo.value === '' || campo.value === undefined;
+      if (vacio && !CRITICOS.includes(nombre)) continue;
+      const tr = document.createElement('tr');
+      if (CRITICOS.includes(nombre)) tr.className = 'critico';
+      if (campo.edited) tr.classList.add('editado');
+      const observacion = (campo.raw || '') + (campo.note ? ' - ' + campo.note : '');
+      tr.innerHTML =
+        '<th>' + escapar(ETIQUETAS[nombre] || nombre) + '</th>' +
+        '<td><input type="text" data-doc="' + escapar(doc.doc_id) + '" data-campo="' + nombre +
+        '" value="' + escapar(campo.value) + '"></td>' +
+        '<td>' + badge(campo.confidence || 'faltante') + '</td>' +
+        '<td class="raw">' + escapar(observacion) + '</td>';
+      tabla.appendChild(tr);
+      if (CRITICOS.includes(nombre) &&
+          (campo.confidence === 'baja' || campo.confidence === 'faltante')) pendientes++;
+    }
+    card.appendChild(tabla);
+    if (doc.imagen) {
+      const wrap = document.createElement('div');
+      wrap.className = 'imgwrap';
+      wrap.innerHTML = '<img src="' + escapar(data.prefijo_imagenes + doc.imagen) + '" alt="recorte">';
+      card.appendChild(wrap);
+    }
+    contenedor.appendChild(card);
+  });
+  document.getElementById('stats').textContent =
+    data.documentos.length + ' documentos - ' + pendientes + ' campos criticos por revisar';
+}
+
+function recolectar() {
+  const copia = JSON.parse(JSON.stringify(data));
+  document.querySelectorAll('input[data-doc]').forEach(input => {
+    const doc = copia.documentos.find(d => d.doc_id === input.dataset.doc);
+    if (!doc) return;
+    const nombre = input.dataset.campo;
+    const campo = doc[nombre];
+    if (!campo) return;
+    const original = String(campo.value === null || campo.value === undefined ? '' : campo.value);
+    if (input.value === original) return;
+    if (MONTO.includes(nombre)) {
+      const limpio = input.value.replace(/[^\d]/g, '');
+      campo.value = limpio ? parseInt(limpio, 10) : null;
+    } else {
+      campo.value = input.value;
+    }
+    campo.edited = true;
+    campo.confidence = 'alta';
+  });
+  delete copia.prefijo_imagenes;
+  return copia;
+}
+
+function exportar() {
+  const copia = recolectar();
+  localStorage.setItem(clave, JSON.stringify(copia.documentos));
+  const blob = new Blob([JSON.stringify(copia, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'expediente_corregido.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('btn-exportar').addEventListener('click', exportar);
+document.getElementById('btn-reset').addEventListener('click', () => {
+  localStorage.removeItem(clave);
+  location.reload();
+});
+window.addEventListener('beforeunload', () => {
+  localStorage.setItem(clave, JSON.stringify(recolectar().documentos));
+});
+
+render();
+</script>
+
+</body>
+</html>

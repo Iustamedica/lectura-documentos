@@ -1,0 +1,24 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Salidas generadas: contienen datos de pacientes (nombres, RUT, texto OCR).
+salidas/
+
+# Datos del caso real: NUNCA versionar.
+#   - caso.json real (se versiona solo caso.ejemplo.json)
+#   - escaneos (PDF/escaneos originales con datos clinicos)
+#   - cualquier JSON corregido del revisor
+caso.json
+escaneos*/
+*.pdf
+expediente*.json
+*_corregido.json
+
+# Basura del sistema / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,30 @@
+{
+  "caso": "EXPEDIENTE EJEMPLO",
+  "descripcion": "Configuracion de ejemplo con dos titulares ficticios: una madre y su hijo. La agrupacion de documentos se hace por RUT; el campo 'relacion' solo describe el parentesco en el informe (no fusiona expedientes). Copie este archivo como caso.json y reemplace los datos por los de su caso real.",
+  "titulares": [
+    {
+      "rut": "12.345.678-5",
+      "nombre": "GLORIA ESTER SOTO PEREZ",
+      "relacion": "titular principal",
+      "notas": "Titular con RUT conocido. Documentos de ejemplo: recetas, examenes y boletas.",
+      "alias": [
+        "GLORIA ESTER SOTO PEREZ",
+        "SOTO PEREZ GLORIA ESTER",
+        "GLORIA ESTER SOTO",
+        "ESTER SOTO PEREZ",
+        "GLORIA ESTER SOT"
+      ]
+    },
+    {
+      "rut": "",
+      "nombre": "LUIS ANDRES SOTO PEREZ",
+      "relacion": "hijo de la titular principal",
+      "notas": "Titular sin RUT en los documentos escaneados. El informe lo muestra como 'por confirmar' y no se deben sumar montos a su nombre hasta verificarlo.",
+      "alias": [
+        "LUIS ANDRES SOTO PEREZ",
+        "LUIS SOTO PEREZ",
+        "LUIS SOTO"
+      ]
+    }
+  ]
+}
