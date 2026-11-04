@@ -25,7 +25,7 @@ from .extractors.otros import extract_clinico, extract_receta_manuscrita
 from .layout import Block, build_lines, split_blocks
 from .models import CONF_BAJA, CONF_FALTA, CONF_MEDIA, Document
 from .normalizers import fold, parse_clp
-from .ocr import OCREngine, PageOCR, ocr_pages
+from .ocr import TARGET_HEIGHT, OCREngine, PageOCR, ocr_pages
 from .titulares import TitularConfig, resolve_expediente
 
 # Marcadores que indican el inicio de un documento dentro de una hoja.
@@ -61,6 +61,10 @@ class PipelineOptions:
     render_dir: Path | None = None    # carpeta donde guardar los recortes PNG
     dpi: int = 300
     min_confidence: float = 0.35      # descarta tokens de OCR muy malos
+    # Alto al que se normaliza la imagen antes del OCR. Reduce las fotos de
+    # celular de ~12 MP: acota el uso de memoria, aunque la ganancia de
+    # velocidad es pequena (~10 %) porque RapidOCR normaliza el tamano interno.
+    target_height: int = TARGET_HEIGHT
 
 
 def _is_noise(block: Block) -> bool:
@@ -134,7 +138,7 @@ def process_pdf(
 ) -> list[Document]:
     """Procesa un archivo y devuelve los documentos detectados."""
     options = options or PipelineOptions()
-    pages = ocr_pages(path, engine, dpi=options.dpi)
+    pages = ocr_pages(path, engine, dpi=options.dpi, target_height=options.target_height)
     documents: list[Document] = []
     for page in pages:
         documents.extend(process_page(path, page, options, nombres_conocidos, documents))
@@ -261,7 +265,7 @@ def process_folder(
     paginas: dict[Path, list[PageOCR]] = {}
     documentos_por_archivo: dict[Path, list[Document]] = {}
     for path in files:
-        paginas[path] = ocr_pages(path, engine, dpi=options.dpi)
+        paginas[path] = ocr_pages(path, engine, dpi=options.dpi, target_height=options.target_height)
         acumulados: list[Document] = []
         for page in paginas[path]:
             acumulados.extend(process_page(path, page, options, None, acumulados))

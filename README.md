@@ -64,8 +64,13 @@ cp caso.ejemplo.json caso.json      # luego editar con los datos reales
 ./ejecutar.sh              # OCR + extraccion + revisor (usa ../../escaneos-csm)
 ./ejecutar.sh /ruta/a/otra/carpeta
 
+# si los documentos son fotos de celular, primero:
+.venv/bin/python -m documental.cli preparar /ruta/fotos --destino salidas/pdf
+
 # tras corregir y exportar expediente_corregido.json en salidas/
 ./informe.sh               # genera salidas/informe.docx
+.venv/bin/python -m documental.cli compilar salidas/expediente_corregido.json \
+    --origen salidas/pdf   # genera salidas/documentos.pdf + individualizacion
 ```
 
 `caso.json` (datos del caso) esta en `.gitignore`: **nunca** se versiona. El
@@ -77,9 +82,13 @@ repositorio solo incluye `caso.ejemplo.json` con datos ficticios.
 ## 2. Flujo de trabajo
 
 ```
-PDF escaneados
-     |
-     v
+Fotos (JPG/PNG)                      PDF escaneados
+     |                                     |
+     v                                     |
+[0] preparar -> PDF sin perder resolucion  |
+     |                                     |
+     +------------------+------------------+
+                        v
 [1] procesar  ->  OCR + clasificacion + extraccion  ->  salidas/expediente.json
                                                     ->  salidas/render/*.png (recortes)
      |
@@ -87,8 +96,29 @@ PDF escaneados
 [2] revisor.html  ->  revision humana en el navegador  ->  expediente_corregido.json
      |
      v
-[3] informe   ->  salidas/informe.docx
+[3] informe   ->  salidas/informe.docx          (analisis por titular)
+[4] compilar  ->  salidas/documentos.pdf        (un solo PDF para el tribunal)
+              ->  salidas/individualizacion.docx/.csv  (tabla del escrito)
 ```
+
+### Paso 0: convertir fotos a PDF (solo si los documentos son fotos)
+
+```bash
+.venv/bin/python -m documental.cli preparar ../../escaneos-postqx \
+    --destino salidas/pdf --unir-por-tiempo 35
+```
+
+Convierte cada foto en una hoja de PDF **sin reducir su resolucion**: el tamano
+de pagina se calcula desde los pixeles a 300 dpi, de modo que al volver a
+renderizar se recuperan los mismos pixeles (una foto de 2779 x 3549 px da una
+pagina de 667 x 852 pt).
+
+`--unir-por-tiempo SEGUNDOS` propone agrupar en un mismo PDF las fotos tomadas
+con menos de N segundos de diferencia, porque suelen ser las hojas del mismo
+documento. Es **una propuesta**, no una certeza: queda registrada en
+`salidas/mapa_fotos.csv` para revisarla. Con `0` (por defecto) no agrupa nada.
+
+Para revisar el plan sin escribir archivos: agregue `--dry-run`.
 
 ### Paso 1: procesar la carpeta de escaneos
 
@@ -132,6 +162,50 @@ El boton **Exportar JSON corregido** descarga `expediente_corregido.json`
 ```
 
 El `.docx` se abre en Word, LibreOffice u Obsidian.
+
+### Paso 4: compilar el PDF del tribunal y la tabla de individualizacion
+
+```bash
+.venv/bin/python -m documental.cli compilar salidas/expediente_corregido.json \
+    --origen salidas/pdf \
+    --pdf salidas/documentos.pdf \
+    --csv salidas/individualizacion.csv \
+    --docx salidas/individualizacion.docx
+```
+
+Genera tres cosas:
+
+1. **`documentos.pdf`**: un solo PDF con todos los documentos, en orden
+   cronologico. En la primera hoja de cada uno estampa el bloque de
+   identificacion que usa el escrito:
+
+   ```
+   DOCUMENTO N 3
+   NOMBRE: GLORIA ESTER SOTO PEREZ
+   RUT: 12.345.678-5
+   TIPO: Bono de atencion FONASA      FECHA: 12-03-2026
+   EMISOR: HOSPITAL DE EJEMPLO        FOLIO: 1234
+   ```
+
+   El encabezado **amplia la hoja hacia arriba**, no se escribe encima: el
+   documento original nunca queda tapado ni se pierde margen. Cada documento
+   queda ademas como marcador del PDF, para saltar entre ellos en el visor.
+
+2. **`individualizacion.docx` / `.csv`**: la tabla del escrito (N, tipo, fecha,
+   emisor, titular, RUT, folio, monto, archivo y pagina de origen).
+
+3. **Los documentos sin fecha legible quedan al final**, no intercalados.
+
+Con `--sin-estampar` compila sin encabezado. Con `--dry-run` no escribe el PDF,
+pero si la tabla, para revisar el resultado antes de generarlo.
+
+`--origen` se puede repetir tantas veces como carpetas haya (por ejemplo
+`--origen salidas/pdf --origen ../../escaneos-csm`).
+
+**La numeracion `DOC-NN` es una propuesta.** Se calcula agrupando las hojas
+consecutivas del mismo archivo que comparten familia, folio y titular. Si un
+documento quedo mal unido o separado, corrija la fecha o el folio en el revisor
+y vuelva a compilar.
 
 ### Regenerar sin repetir el OCR
 
@@ -288,6 +362,31 @@ Limitaciones especificas de la agrupacion de titulares:
   calza con ningun titular, se emite una advertencia de titular sin emparejar en
   vez de fusionarlo en silencio.
 
+Limitaciones de la conversion de fotos y de la individualizacion:
+
+- **La agrupacion por tiempo encadena.** `--unir-por-tiempo` compara cada foto
+  con la anterior, no con la primera del grupo. En un lote real de 85 fotos los
+  intervalos dentro de un documento fueron de 6 a 34 s y los de entre documentos
+  de 39 s o mas, de modo que 35 s es un corte razonable; pero una sesion en la
+  que se fotografia sin pausa (13 fotos seguidas cada ~13 s) se une en un solo
+  documento aunque sean varios. Revise siempre `mapa_fotos.csv`.
+- **La reduccion a 2200 px no acelera de forma notoria.** Medido sobre fotos de
+  2779 x 3549 px: 28,5 s frente a 31,2 s (unos 10 %), con texto extraido
+  identico. RapidOCR ya normaliza el tamano internamente; `--target-height`
+  sirve para acotar memoria, no para ganar tiempo.
+- **La tabla de individualizacion solo puede mostrar lo que el OCR leyo.** En el
+  lote de fotos de prueba, 2 de 5 documentos quedaron con nombre y fecha; el
+  resto aparece con `-`. Un RUT ausente en la tabla no significa que el
+  documento no lo tenga: significa que el OCR no lo reconocio. Corrijalo en el
+  revisor antes de compilar.
+- **La numeracion `DOC-NN` no se edita desde el revisor todavia.** Se recalcula
+  al compilar a partir de la fecha corregida y del orden de los archivos. Si
+  necesita un orden manual distinto, la via actual es ajustar la fecha de
+  emision en el revisor.
+- **Un documento puede ocupar varias paginas o compartir hoja con otro.** La
+  agrupacion une hojas consecutivas del mismo archivo con igual familia, folio y
+  titular; ante la duda deja documentos separados.
+
 ---
 
 ## 8. Estructura del proyecto
@@ -303,12 +402,15 @@ herramientas/documental/
 ├── src/documental/
 │   ├── normalizers.py         # RUT, CLP, fechas, nombres
 │   ├── ocr.py                 # RapidOCR + render de PDF + preprocesado
+│   ├── ingesta.py             # fotos -> PDF sin perder resolucion
 │   ├── layout.py              # lineas y bloques (varios documentos por hoja)
 │   ├── classify.py            # familia documental por palabras clave
 │   ├── models.py              # Field, Document, Titular, Expediente
 │   ├── extractors/            # un modulo por familia documental
 │   ├── titulares.py           # agrupacion por RUT y parentesco
 │   ├── pipeline.py            # orquestacion de punta a punta
+│   ├── individualizacion.py   # agrupar hojas, numerar DOC-NN, tabla del escrito
+│   ├── compilar.py            # PDF unico con encabezado estampado y marcadores
 │   ├── report_docx.py         # informe Word
 │   ├── revisor.py             # revisor HTML autocontenido
 │   └── cli.py                 # linea de comandos

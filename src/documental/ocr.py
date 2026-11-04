@@ -133,18 +133,23 @@ def load_image(path: Path) -> list[Image.Image]:
         return [image.convert("RGB")]
 
 
-def preprocess(image: Image.Image) -> Image.Image:
+def preprocess(image: Image.Image, *, target_height: int = TARGET_HEIGHT) -> Image.Image:
     """Mejora la imagen antes del OCR.
 
-    - Reescala al alto objetivo (mejora la letra pequena de escaneos de baja
-      resolucion).
+    - Lleva la imagen a un alto objetivo: agranda los escaneos de baja
+      resolucion (mejora la letra pequena) y reduce las fotos de celular de
+      ~12 MP. La reduccion no mejora la lectura (RapidOCR ya normaliza el
+      tamano internamente) y apenas gana velocidad: medido sobre fotos de
+      2779 x 3549 px dio 28,5 s frente a 31,2 s, con texto extraido identico.
+      Se mantiene porque acota el uso de memoria y evita trabajar de mas.
     - Aplica autocontraste en escala de grises para separar tinta de papel.
     - Mantiene modo RGB porque RapidOCR espera 3 canales.
     """
     width, height = image.size
-    scale = min(MAX_SCALE, max(1.0, TARGET_HEIGHT / max(height, 1)))
-    if scale > 1.0:
-        image = image.resize((int(width * scale), int(height * scale)), Image.LANCZOS)
+    scale = min(MAX_SCALE, target_height / max(height, 1))
+    if abs(scale - 1.0) > 0.01:
+        nuevo = (max(1, int(width * scale)), max(1, int(height * scale)))
+        image = image.resize(nuevo, Image.LANCZOS)
     gray = image.convert("L")
     # Autocontraste suave: recorta el 1 % de los extremos del histograma.
     hist = gray.histogram()
@@ -169,7 +174,12 @@ def preprocess(image: Image.Image) -> Image.Image:
     return stretch.convert("RGB")
 
 
-def ocr_pages(path: Path, engine: OCREngine | None = None, dpi: int = 300) -> list[PageOCR]:
+def ocr_pages(
+    path: Path,
+    engine: OCREngine | None = None,
+    dpi: int = 300,
+    target_height: int = TARGET_HEIGHT,
+) -> list[PageOCR]:
     """Ejecuta el pipeline completo sobre un archivo PDF o imagen."""
     engine = engine or OCREngine()
     suffix = path.suffix.lower()
@@ -181,7 +191,7 @@ def ocr_pages(path: Path, engine: OCREngine | None = None, dpi: int = 300) -> li
 
     results: list[PageOCR] = []
     for index, raw in enumerate(raw_pages, start=1):
-        processed = preprocess(raw)
+        processed = preprocess(raw, target_height=target_height)
         tokens = engine.run(processed)
         results.append(
             PageOCR(
