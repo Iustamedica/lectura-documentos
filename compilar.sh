@@ -11,6 +11,13 @@
 #   PREFIJO        = documentos
 #
 # Genera <caso>/salidas/<PREFIJO>.pdf, <PREFIJO>-individualizacion.csv y .docx
+#
+# Las imagenes se recomprimen por defecto para que el PDF se pueda enviar: un
+# expediente de fotos de celular baja de cientos de MB a decenas. Para conservar
+# la resolucion original:
+#
+#   COMPRIMIR=0 ./compilar.sh
+#   DPI=300 CALIDAD=90 ./compilar.sh      # menos agresivo
 
 set -euo pipefail
 
@@ -59,14 +66,28 @@ if [ ! -d "$ORIGEN" ]; then
 fi
 
 PREFIJO="${3:-documentos}"
+COMPRIMIR="${COMPRIMIR:-1}"
+DPI="${DPI:-200}"
+CALIDAD="${CALIDAD:-80}"
+
+OPCIONES=()
+if [ "$COMPRIMIR" = "1" ]; then
+    OPCIONES=(--comprimir --dpi "$DPI" --calidad "$CALIDAD")
+fi
 
 echo "== Compilando desde: $JSON"
 echo "   Archivos originales: $ORIGEN"
+if [ "$COMPRIMIR" = "1" ]; then
+    echo "   Compresion: ${DPI} dpi, calidad JPEG ${CALIDAD} (COMPRIMIR=0 para desactivar)"
+else
+    echo "   Compresion: desactivada (se conserva la resolucion original)"
+fi
 PYTHONPATH=src "$PYTHON" -m documental.cli compilar "$JSON" \
     --origen "$ORIGEN" \
     --pdf "$SALIDAS/$PREFIJO.pdf" \
     --csv "$SALIDAS/$PREFIJO-individualizacion.csv" \
-    --docx "$SALIDAS/$PREFIJO-individualizacion.docx"
+    --docx "$SALIDAS/$PREFIJO-individualizacion.docx" \
+    ${OPCIONES[@]+"${OPCIONES[@]}"}
 
 echo
 echo "Listo. Revise antes de presentar:"

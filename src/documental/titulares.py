@@ -99,10 +99,41 @@ def load_titulares(path: Path) -> list[TitularConfig]:
     return result
 
 
+# Cuantos documentos debe respaldar un titular que no esta declarado en la ficha
+# del caso. Un RUT o un nombre visto una sola vez suele ser un profesional, un
+# acompanante o basura de OCR: en un informe para juicio no puede convertirse en
+# titular sin respaldo.
+MIN_DOCUMENTOS_POR_TITULAR = 2
+
+
+@dataclass
+class AnalisisTitulares:
+    """Resultado de agrupar documentos por titular.
+
+    ``descartados`` trae los grupos que no alcanzaron el minimo de respaldo y que
+    por lo tanto NO se informan como titulares. Se reportan como advertencia para
+    que el abogado los revise y, si corresponde, los declare en ``caso.json``.
+    """
+
+    titulares: list[Titular]
+    descartados: list[tuple[Titular, int]] = field(default_factory=list)
+
+
 def build_titulares(
-    documentos: list[Document], config: list[TitularConfig] | None = None
+    documentos: list[Document],
+    config: list[TitularConfig] | None = None,
+    min_documentos: int = MIN_DOCUMENTOS_POR_TITULAR,
 ) -> list[Titular]:
-    """Construye la lista de titulares a partir de los documentos extraidos.
+    """Devuelve solo la lista de titulares (ver ``analizar_titulares``)."""
+    return analizar_titulares(documentos, config, min_documentos).titulares
+
+
+def analizar_titulares(
+    documentos: list[Document],
+    config: list[TitularConfig] | None = None,
+    min_documentos: int = MIN_DOCUMENTOS_POR_TITULAR,
+) -> AnalisisTitulares:
+    """Agrupa los documentos por titular y separa los grupos sin respaldo.
 
     Reglas aplicadas:
       - se agrupa por RUT; sin RUT, por nombre normalizado (palabras ordenadas,
@@ -110,6 +141,13 @@ def build_titulares(
         sean el mismo titular);
       - un documento cuyo unico dato es un RUT de profesional (sin nombre) NO
         crea titular: el RUT del medico no identifica al paciente;
+      - un RUT se acepta solo si esta declarado en la ficha del caso o si algun
+        documento trae el nombre de ese RUT. Un RUT suelto no crea titular:
+        puede ser el prestador, un acompanante o el paciente de otro bono del
+        mismo talonario;
+      - un nombre sin RUT se acepta si esta declarado en el caso o si aparece en
+        al menos ``min_documentos`` documentos;
+      - lo que no cumple va a ``descartados`` para reportarlo como advertencia;
       - los titulares declarados en la ficha del caso siempre aparecen, aunque
         todavia no tengan documentos.
     """
@@ -126,6 +164,31 @@ def build_titulares(
             continue
         items.append((rut, nombre))
 
+    # Respaldo por clave y nombres que acompanan a cada RUT.
+    soporte: dict[str, int] = {}
+    nombre_por_rut: dict[str, str] = {}
+    for rut, nombre in items:
+        clave = f"rut:{rut_body(rut)}" if rut else f"nombre:{_name_key(nombre or '')}"
+        soporte[clave] = soporte.get(clave, 0) + 1
+        if rut and nombre:
+            nombre_por_rut.setdefault(rut_body(rut), nombre)
+
+    def _declarado(rut: str | None, nombre: str | None) -> bool:
+        return any(item.matches(rut, nombre) for item in config)
+
+    def _con_respaldo(rut: str | None, nombre: str | None, clave: str) -> bool:
+        if _declarado(rut, nombre):
+            return True
+        if rut:
+            # Un RUT sin nombre no identifica a nadie: puede ser el profesional,
+            # un acompanante o el paciente de otro bono del mismo talonario. Solo
+            # se acepta si algun documento trae el nombre de ese RUT o si esta
+            # declarado en la ficha del caso (ver arriba).
+            return rut_body(rut) in nombre_por_rut
+        return soporte.get(clave, 0) >= min_documentos
+
+    descartados: dict[str, tuple[Titular, int]] = {}
+
     # Fase 1: grupos con RUT. Se resuelven primero para que un documento que
     # solo trae el nombre se una al grupo correcto, sin importar el orden en
     # que llegaron los archivos.
@@ -136,7 +199,12 @@ def build_titulares(
         clave = _titular_key(rut, nombre)
         if clave in grupos:
             continue
-        grupos[clave] = _nuevo_titular(rut, nombre, config)
+        if _con_respaldo(rut, nombre, clave):
+            grupos[clave] = _nuevo_titular(rut, nombre, config)
+        else:
+            descartados.setdefault(
+                clave, (Titular(rut=rut, nombre=nombre or ""), soporte.get(clave, 0))
+            )
 
     # Fase 2: documentos sin RUT; se buscan por nombre contra los grupos ya
     # creados y entre si.
@@ -147,7 +215,12 @@ def build_titulares(
         if clave is None:
             clave = _titular_key(None, nombre)
             if clave not in grupos:
-                grupos[clave] = _nuevo_titular(None, nombre, config)
+                if _con_respaldo(None, nombre, clave):
+                    grupos[clave] = _nuevo_titular(None, nombre, config)
+                else:
+                    descartados.setdefault(
+                        clave, (Titular(rut="", nombre=nombre or ""), soporte.get(clave, 0))
+                    )
                 continue
         titular = grupos[clave]
         # Se prefiere el nombre mas completo: "GLORIA ESTER SOTO PEREZ"
@@ -172,7 +245,10 @@ def build_titulares(
                 rut=item.rut or "", nombre=item.nombre, relacion=item.relacion, notas=item.notas
             )
 
-    return sorted(grupos.values(), key=lambda t: (t.nombre or "zzz"))
+    return AnalisisTitulares(
+        titulares=sorted(grupos.values(), key=lambda t: (t.nombre or "zzz")),
+        descartados=list(descartados.values()),
+    )
 
 
 def _solo_rut_de_profesional(doc: Document) -> bool:
@@ -260,8 +336,17 @@ def resolve_expediente(
     config: list[TitularConfig] | None = None,
 ) -> Expediente:
     """Arma el expediente con titulares y advertencias de consistencia."""
-    titulares = build_titulares(documentos, config)
+    analisis = analizar_titulares(documentos, config)
+    titulares = analisis.titulares
     advertencias: list[str] = []
+
+    for titular, cuantos in analisis.descartados:
+        etiqueta = titular.rut or titular.nombre or "sin datos"
+        advertencias.append(
+            f"Posible titular '{etiqueta}' aparece en {cuantos} documento(s) y no "
+            "esta en la ficha del caso: no se incluyo como titular. "
+            "Agreguelo a caso.json si corresponde."
+        )
 
     for doc in documentos:
         if doc.titular_rut.confidence == CONF_FALTA:

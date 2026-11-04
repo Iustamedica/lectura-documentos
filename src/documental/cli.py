@@ -29,7 +29,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .compilar import compilar
+from .compilar import CALIDAD_JPEG, DPI_COMPRESION, compilar
 from .individualizacion import agrupar, escribir_csv, escribir_docx
 from .ingesta import DPI_CONVERSION, preparar
 from .ocr import TARGET_HEIGHT
@@ -94,6 +94,9 @@ def _cmd_compilar(args: argparse.Namespace) -> int:
         origen=[Path(ruta) for ruta in args.origen],
         destino=Path(args.pdf),
         estampar=not args.sin_estampar,
+        comprimir=args.comprimir,
+        dpi=args.dpi,
+        calidad=args.calidad,
         dry_run=args.dry_run,
     )
     modo = " (simulacion: sin PDF)" if args.dry_run else ""
@@ -125,7 +128,9 @@ def _cmd_compilar(args: argparse.Namespace) -> int:
     if args.docx:
         print(f"Individualizacion Word: {escribir_docx(grupos, Path(args.docx))}")
     if not resultado.dry_run:
-        print(f"PDF unico: {resultado.destino}")
+        megas = resultado.bytes / (1024 * 1024)
+        extra = f" | comprimido a {args.dpi} dpi (q{args.calidad})" if resultado.comprimido else ""
+        print(f"PDF unico: {resultado.destino} ({megas:.1f} MB{extra})")
     return 0
 
 
@@ -263,6 +268,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_comp.add_argument(
         "--sin-estampar", action="store_true", dest="sin_estampar",
         help="Compila sin el encabezado de identificacion",
+    )
+    p_comp.add_argument(
+        "--comprimir", action="store_true",
+        help="Recomprime las imagenes (JPEG) para reducir el peso del PDF",
+    )
+    p_comp.add_argument(
+        "--dpi", type=int, default=DPI_COMPRESION,
+        help=f"DPI objetivo al comprimir (por defecto {DPI_COMPRESION})",
+    )
+    p_comp.add_argument(
+        "--calidad", type=int, default=CALIDAD_JPEG,
+        help=f"Calidad JPEG al comprimir, 0-100 (por defecto {CALIDAD_JPEG})",
     )
     p_comp.add_argument(
         "--dry-run", action="store_true", dest="dry_run",

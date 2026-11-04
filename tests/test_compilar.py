@@ -200,3 +200,50 @@ class TestSalvaguardas:
         )
         assert resultado.documentos == 2
         assert resultado.faltantes == []
+
+
+class TestCompresion:
+    """La compresion opcional baja el peso sin cambiar la estructura del PDF."""
+
+    @staticmethod
+    def _imagen_pesada(path: Path) -> Path:
+        from PIL import Image
+
+        # Ruido con muchas transiciones: un JPEG de fotografia real, no un bloque
+        # de color plano que se comprime solo.
+        Image.effect_noise((2000, 2800), 64).convert("RGB").save(path, quality=95)
+        return path
+
+    def test_comprimir_reduce_el_peso_y_conserva_paginas_y_encabezado(self, tmp_path):
+        self._imagen_pesada(tmp_path / "foto.jpg")
+        grupos = agrupar([_doc(1, "foto.jpg", fecha=date(2026, 3, 12))])
+
+        normal = compilar(grupos, origen=tmp_path, destino=tmp_path / "normal.pdf")
+        chico = compilar(
+            grupos,
+            origen=tmp_path,
+            destino=tmp_path / "chico.pdf",
+            comprimir=True,
+            dpi=72,
+            calidad=60,
+        )
+
+        assert not normal.comprimido
+        assert chico.comprimido
+        assert normal.bytes > 0 and chico.bytes > 0
+        assert chico.bytes < normal.bytes
+
+        with pymupdf.open(str(tmp_path / "chico.pdf")) as doc:
+            assert doc.page_count == 1
+            assert "DOCUMENTO N 1" in doc[0].get_text()
+            assert round(doc[0].rect.height) == round(2800 * 72 / 300 + HEADER_HEIGHT)
+
+    def test_sin_comprimir_no_toca_las_imagenes(self, tmp_path):
+        self._imagen_pesada(tmp_path / "foto.jpg")
+        grupos = agrupar([_doc(1, "foto.jpg")])
+        resultado = compilar(grupos, origen=tmp_path, destino=tmp_path / "unico.pdf")
+        assert resultado.comprimido is False
+        with pymupdf.open(str(tmp_path / "unico.pdf")) as doc:
+            imagenes = doc[0].get_images(full=True)
+            assert imagenes, "la foto debe seguir embebida en el PDF"
+

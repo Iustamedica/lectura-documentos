@@ -180,8 +180,15 @@ El `.docx` se abre en Word, LibreOffice u Obsidian.
     --origen salidas/pdf \
     --pdf salidas/documentos.pdf \
     --csv salidas/individualizacion.csv \
-    --docx salidas/individualizacion.docx
+    --docx salidas/individualizacion.docx \
+    --comprimir
 ```
+
+`--comprimir` recomprime las fotos a JPEG de 200 dpi (ajustable con `--dpi` y
+`--calidad`). Un expediente de fotos de celular baja de cientos de MB a decenas
+sin perder legibilidad; sin la opcion el PDF conserva la resolucion original y
+puede pasar de 500 MB, incomodo para presentar o enviar. El texto del encabezado
+sigue siendo vectorial: la compresion solo afecta a las imagenes.
 
 Genera tres cosas:
 
@@ -295,6 +302,17 @@ Reglas:
   el RUT del profesional aparece suelto ("Rp. RUT: 11.111.111-1") y antes se
   convertia en un titular de nombre vacio; hoy se descarta como RUT del titular
   y se guarda como RUT del profesional.
+- **Un RUT sin nombre tampoco crea titular**, aunque se repita en varios
+  documentos: puede ser el prestador, un acompanante o el paciente de otro bono
+  del mismo talonario. Solo se acepta si esta declarado en `caso.json` o si
+  algun documento trae el nombre de ese RUT.
+- **Un nombre sin RUT** se acepta si esta declarado en `caso.json` o si aparece
+  en al menos 2 documentos. Un nombre visto una sola vez (tipicamente basura de
+  OCR, como "GLORIA ESTER SOTO PEREZ RUIZ" cuando lo leido era "GLORIA ESTER
+  SOTO PEREZ") no se informa como titular.
+- Lo descartado por falta de respaldo **no se pierde**: queda como advertencia
+  del expediente ("Posible titular '...' aparece en N documento(s)...") para que
+  se revise y, si corresponde, se agregue a `caso.json`.
 - Los montos se suman por titular; los documentos sin titular identificado no se
   asignan a nadie y se listan en el anexo.
 

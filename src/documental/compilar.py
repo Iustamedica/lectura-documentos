@@ -15,6 +15,10 @@ margen del escaneo. Cada documento queda ademas como marcador del PDF para
 poder saltar entre documentos en el visor.
 
 Los archivos de origen solo se leen; nunca se modifican.
+
+Con ``comprimir=True`` las imagenes embebidas se recomprimen a JPEG a un DPI
+objetivo (200 por defecto). Un expediente de fotos de celular pasa de cientos de
+megabytes a decenas sin perder legibilidad de lectura.
 """
 
 from __future__ import annotations
@@ -35,6 +39,11 @@ TAMANO_FUENTE = 7.5
 TAMANO_TITULO = 9.0
 INTERLINEADO = 10.5
 
+# Compresion opcional de las imagenes embebidas. 200 dpi alcanza para leer texto
+# escaneado y reduce a una fraccion el peso de las fotos de celular (300-400 dpi).
+DPI_COMPRESION = 200
+CALIDAD_JPEG = 80
+
 
 @dataclass
 class ResultadoCompilacion:
@@ -48,6 +57,8 @@ class ResultadoCompilacion:
     # Hojas que se repiten en el PDF porque contienen mas de un documento:
     # cada uno necesita su propio encabezado y su propia pagina.
     paginas_compartidas: list[str] = field(default_factory=list)
+    comprimido: bool = False
+    bytes: int = 0
     dry_run: bool = False
 
 
@@ -132,6 +143,9 @@ def compilar(
     origen,
     destino: Path,
     estampar: bool = True,
+    comprimir: bool = False,
+    dpi: int = DPI_COMPRESION,
+    calidad: int = CALIDAD_JPEG,
     dry_run: bool = False,
 ) -> ResultadoCompilacion:
     """Compila los documentos de ``grupos`` en un unico PDF.
@@ -139,6 +153,10 @@ def compilar(
     ``origen`` es una carpeta (o lista de carpetas) donde estan los archivos
     citados en ``source_file``. En ``dry_run`` solo se informa que se haria y
     que archivos faltan, sin escribir nada.
+
+    ``comprimir`` recomprime las imagenes a ``dpi`` (200 por defecto) con calidad
+    JPEG ``calidad``. Solo afecta a las imagenes: el texto del encabezado sigue
+    siendo vectorial y el contenido de cada hoja no se recorta.
     """
     if not grupos:
         raise ValueError("No hay documentos para compilar")
@@ -217,7 +235,19 @@ def compilar(
         resultado.paginas = salida.page_count
         if marcadores:
             salida.set_toc(marcadores)
+        if comprimir:
+            # dpi_threshold es el piso a partir del cual se procesa una imagen y
+            # dpi_target el valor al que se lleva: la API exige target < threshold.
+            salida.rewrite_images(
+                dpi_threshold=max(1, int(dpi)) + 1,
+                dpi_target=max(1, int(dpi)),
+                quality=calidad,
+                lossy=True,
+                lossless=True,
+            )
+            resultado.comprimido = True
         salida.save(str(destino), garbage=3, deflate=True)
+        resultado.bytes = destino.stat().st_size
     finally:
         salida.close()
     return resultado
