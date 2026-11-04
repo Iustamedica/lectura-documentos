@@ -4,7 +4,8 @@ __pycache__/
 .pytest_cache/
 
 # Salidas generadas: contienen datos de pacientes (nombres, RUT, texto OCR).
-salidas/
+# El asterisco cubre salidas/, salidas-completo/, salidas-prueba/, etc.
+salidas*/
 
 # Datos del caso real: NUNCA versionar.
 #   - caso.json real (se versiona solo caso.ejemplo.json)

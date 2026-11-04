@@ -57,29 +57,39 @@ PYTHONPATH=src .venv/bin/python -m documental.cli --help
 ### Atajos (scripts incluidos)
 
 ```bash
+# Los documentos del paciente y su configuracion viven en la carpeta del caso,
+# fuera de este repositorio. Los scripts la detectan solos: es la carpeta hermana
+# del proyecto que contiene un caso.json. Tambien se puede fijar a mano.
+
 # 1) crear la configuracion del caso a partir de la plantilla
-cp caso.ejemplo.json caso.json      # luego editar con los datos reales
+cp caso.ejemplo.json "<caso>/caso.json"      # luego editarlo con los datos reales
 
-# 2) procesar
-./ejecutar.sh              # OCR + extraccion + revisor (usa ../../escaneos-csm)
+# 2) procesar (por defecto toma <caso>/escaneos-csm)
+./ejecutar.sh
 ./ejecutar.sh /ruta/a/otra/carpeta
+CASO_DIR="/ruta/al/caso" ./ejecutar.sh       # forzar otra carpeta de caso
 
-# si los documentos son fotos de celular, primero:
-.venv/bin/python -m documental.cli preparar /ruta/fotos --destino salidas/pdf
+# si los documentos son fotos de celular, primero se agrupan en PDF:
+.venv/bin/python -m documental.cli preparar "<caso>/escaneos-postqx" \
+    --destino "<caso>/salidas/pdf" --unir-por-tiempo 35
 
-# tras corregir y exportar expediente_corregido.json en salidas/
-./informe.sh               # genera salidas/informe.docx
-.venv/bin/python -m documental.cli compilar salidas/expediente_corregido.json \
-    --origen salidas/pdf   # genera salidas/documentos.pdf + individualizacion
+# tras corregir y exportar expediente_corregido.json en <caso>/salidas/
+./informe.sh               # genera <caso>/salidas/informe.docx
+./compilar.sh              # genera <caso>/salidas/documentos.pdf + individualizacion
 ```
 
-`caso.json` (datos del caso) esta en `.gitignore`: **nunca** se versiona. El
-repositorio solo incluye `caso.ejemplo.json` con datos ficticios.
+`caso.json` (datos del caso) vive en la carpeta del caso, **fuera** del
+repositorio. Aqui solo se versiona `caso.ejemplo.json` con datos ficticios.
 
 
 ---
 
 ## 2. Flujo de trabajo
+
+> En los comandos de esta seccion, `salidas/` significa la carpeta de salidas
+> **del caso** (`<caso>/salidas/`), fuera de este repositorio. Los scripts
+> `./ejecutar.sh`, `./informe.sh` y `./compilar.sh` ya apuntan alli y resuelven
+> la carpeta del caso con `_caso.sh` (variable `CASO_DIR` o deteccion automatica).
 
 ```
 Fotos (JPG/PNG)                      PDF escaneados
@@ -392,11 +402,13 @@ Limitaciones de la conversion de fotos y de la individualizacion:
 ## 8. Estructura del proyecto
 
 ```
-herramientas/documental/
-├── caso.json                  # titulares del caso (RUT, nombre, parentesco)
-├── ejecutar.sh                # OCR + extraccion + revisor HTML
-├── informe.sh                 # Word desde el JSON corregido
-├── regenerar.py               # rehace JSON/revisor/Word sin repetir el OCR
+herramientas/documental/          # ESTE repositorio: solo codigo, sin datos
+├── caso.ejemplo.json            # plantilla de configuracion (datos ficticios)
+├── _caso.sh                     # resuelve la carpeta del caso (fuera del repo)
+├── ejecutar.sh                  # OCR + extraccion + revisor HTML
+├── informe.sh                   # Word desde el JSON corregido
+├── compilar.sh                  # PDF unico + tabla de individualizacion
+├── regenerar.py                 # rehace JSON/revisor/Word sin repetir el OCR
 ├── requirements.txt
 ├── pyproject.toml
 ├── src/documental/
@@ -417,6 +429,9 @@ herramientas/documental/
 └── tests/                     # pruebas unitarias
 ```
 
+La carpeta del caso (documentos, `caso.json`, salidas) queda aparte y no se
+versiona; vease la seccion 9.
+
 ---
 
 ## 9. Privacidad
@@ -425,5 +440,43 @@ No hay llamadas a servicios externos en tiempo de ejecucion. Los modelos ONNX se
 descargan **una sola vez** durante `pip install` (quedan dentro de `.venv`) y
 luego el sistema funciona totalmente offline. Los datos de salud nunca salen del
 equipo.
+
+### Separacion entre la herramienta y el caso
+
+Este repositorio contiene **solo la herramienta**. Los documentos del paciente,
+su `caso.json` y todas las salidas viven en una carpeta aparte, fuera de git:
+
+```
+Iustamedica-documentos/
+├── <caso del expediente>/          # la carpeta del caso (NUNCA se versiona)
+│   ├── caso.json                   # titulares del caso
+│   ├── escaneos-csm/               # PDF escaneados
+│   ├── escaneos-postqx/            # fotos del postoperatorio
+│   ├── ejemplo/                    # escritos de referencia
+│   └── salidas/                    # JSON, revisor HTML, PDF, Word, recortes
+│
+└── DOCUMENTAL .../
+    └── herramientas/documental/    # ESTE repositorio (solo codigo)
+```
+
+La carpeta del caso se resuelve en `_caso.sh`: si esta definida la variable
+`CASO_DIR` se usa esa; si no, se busca la unica carpeta hermana del proyecto que
+contenga un `caso.json`. Para trabajar con otro caso:
+
+```bash
+CASO_DIR="/ruta/a/otro/caso" ./ejecutar.sh
+```
+
+Las salidas se escriben siempre dentro de la carpeta del caso, nunca dentro del
+repositorio. Aun asi, `.gitignore` bloquea `salidas*/`, `caso.json`, `*.pdf`,
+`expediente*.json` y `escaneos*/` como segunda barrera.
+
+Antes de cualquier commit conviene verificar que no haya datos clinicos
+rastreados:
+
+```bash
+git status --short                 # no debe listar documentos ni salidas
+git ls-files | grep -iE 'caso|escaneo|salida|pdf|docx'
+```
 
 
