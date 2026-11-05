@@ -168,7 +168,7 @@ def extract_fonasa(block: Block, doc: Document) -> Document:
         # lo entrega como primera palabra del bloque. Los folios FONASA tienen 9
         # digitos; se aceptan 9 a 12 sin separadores y con confianza media para
         # que se pueda contrastar con el original.
-        inicial = first_match((r"(?m)^\s*(\d{9,12})(?!\d)",), text)
+        inicial = first_match((r"(?m)^\s*(\d{9,12})(?![\dK-])",), text)
         if inicial:
             doc.folio.set(
                 inicial, CONF_MEDIA, text[:40].strip(), "numero al inicio del documento"

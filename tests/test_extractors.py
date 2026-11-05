@@ -110,6 +110,12 @@ class TestFolioDelBonoRotado:
         get_extractor("bono_fonasa")(bloque, doc)
         assert doc.folio.is_empty
 
+    def test_un_rut_al_inicio_no_se_toma_como_folio(self):
+        bloque = block_from_text("00012345678-5 GLORIA ESTER SOTO PEREZ\nA Pagar: $ 5000")
+        doc = make_doc()
+        get_extractor("bono_fonasa")(bloque, doc)
+        assert doc.folio.is_empty
+
 
 class TestBoletaSii:
     def test_extrae_titular_y_emisor(self):
