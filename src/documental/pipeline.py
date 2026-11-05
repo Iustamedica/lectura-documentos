@@ -207,7 +207,38 @@ def process_page(
                 page, block, Path(options.render_dir) / f"{doc_id}.png"
             )
         documents.append(doc)
+    _propagar_folio(documents)
     return documents
+
+
+def _propagar_folio(documents: list[Document]) -> None:
+    """Hereda el numero de identificacion entre bloques de la misma hoja.
+
+    Una hoja puede partirse en varios bloques (una foto rotada, una tabla que el
+    layout separa en columnas). El folio o numero de identificacion suele quedar
+    en uno solo de esos bloques y los demas son partes del mismo documento.
+
+    Se propaga solo cuando **todos** los folios presentes en la hoja coinciden:
+    si hay dos folios distintos son dos documentos (por ejemplo dos bonos en la
+    misma hoja) y no se toca nada. El valor heredado queda con confianza media y
+    una nota para que se pueda contrastar.
+    """
+    por_hoja: dict[tuple[str, int], list[Document]] = {}
+    for doc in documents:
+        por_hoja.setdefault((doc.source_file, doc.page), []).append(doc)
+
+    for bloque in por_hoja.values():
+        if len(bloque) < 2:
+            continue
+        folios = {doc.folio.value for doc in bloque if not doc.folio.is_empty}
+        if len(folios) != 1:
+            continue
+        folio = folios.pop()
+        for doc in bloque:
+            if doc.folio.is_empty:
+                doc.folio.set(
+                    folio, CONF_MEDIA, "", "numero heredado de otra parte de la hoja"
+                )
 
 
 

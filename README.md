@@ -168,10 +168,16 @@ El boton **Exportar JSON corregido** descarga `expediente_corregido.json`
 
 ```bash
 .venv/bin/python -m documental.cli informe salidas/expediente_corregido.json \
-    --docx salidas/informe.docx --render salidas/render
+    --docx salidas/informe.docx
 ```
 
 El `.docx` se abre en Word, LibreOffice u Obsidian.
+
+El informe **no incluye los recortes de las imagenes**: las imagenes de los
+documentos ya estan en el PDF compilado del tribunal (paso 4), y sin recortes el
+Word pesa ~1 MB en lugar de ~100 MB, de modo que se puede enviar por correo. Si
+alguna vez hace falta revisar los recortes a pantalla, se agrega
+`--render salidas/render --con-imagenes`.
 
 ### Paso 4: compilar el PDF del tribunal y la tabla de individualizacion
 
@@ -398,6 +404,19 @@ Limitaciones de la conversion de fotos y de la individualizacion:
   de 39 s o mas, de modo que 35 s es un corte razonable; pero una sesion en la
   que se fotografia sin pausa (13 fotos seguidas cada ~13 s) se une en un solo
   documento aunque sean varios. Revise siempre `mapa_fotos.csv`.
+- **Una hoja puede partirse en varios documentos.** El layout separa la hoja en
+  bloques cuando detecta varias columnas (tipico en un bono escaneado girado) y
+  cada bloque se individualiza aparte, con los datos repartidos entre ellos. Para
+  que el numero de identificacion no se pierda, se hereda entre bloques de la
+  misma hoja **solo si no hay conflicto**: si la hoja trae dos folios distintos
+  son dos documentos y no se toca nada. Aun asi, un bono partido puede aparecer
+  como varias filas en `individualizacion.csv`; el PDF avisa de esas hojas
+  ("hojas con mas de un documento") para revisarlas antes de presentar.
+- **El folio del bono puede venir lejos de su etiqueta.** En los bonos FONASA
+  escaneados girados el numero de identificacion queda impreso en el borde, sin
+  la palabra "FOLIO" al lado. Se reconoce como un numero de 9 a 12 digitos al
+  inicio del bloque y se marca con confianza *media* para contrastarlo con el
+  original.
 - **La reduccion a 2200 px no acelera de forma notoria.** Medido sobre fotos de
   2779 x 3549 px: 28,5 s frente a 31,2 s (unos 10 %), con texto extraido
   identico. RapidOCR ya normaliza el tamano internamente; `--target-height`

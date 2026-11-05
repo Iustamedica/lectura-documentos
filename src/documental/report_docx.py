@@ -283,9 +283,13 @@ def _build_index_table(doc: DocxDocument, expediente: Expediente) -> None:
 
 
 def _build_document_card(
-    doc: DocxDocument, item: Document, number: int, image_root: Path | None
+    doc: DocxDocument,
+    item: Document,
+    number: int,
+    image_root: Path | None,
+    incluir_imagenes: bool = False,
 ) -> None:
-    """Ficha individual de un documento con sus datos y recorte."""
+    """Ficha individual de un documento con sus datos y, si se pide, su recorte."""
     _add_heading(doc, f"3.{number} {item.titulo or item.tipo_documento.value}", 2)
 
     origen = doc.add_paragraph()
@@ -344,7 +348,7 @@ def _build_document_card(
                 for run in cell.paragraphs[0].runs:
                     run.font.size = Pt(8)
 
-    if item.imagen and image_root:
+    if incluir_imagenes and item.imagen and image_root:
         image_path = Path(image_root) / item.imagen
         if image_path.exists():
             doc.add_paragraph()
@@ -441,8 +445,16 @@ def generar_informe(
     destino: Path,
     *,
     image_root: Path | None = None,
+    incluir_imagenes: bool = False,
 ) -> Path:
-    """Genera el informe Word y devuelve la ruta del archivo creado."""
+    """Genera el informe Word y devuelve la ruta del archivo creado.
+
+    Por defecto **no** inserta los recortes de las imagenes: el informe es el
+    documento de trabajo y las imagenes ya estan en el PDF compilado del
+    tribunal. Sin recortes el Word pasa de ~100 MB a ~1 MB y se puede enviar por
+    correo. Con ``incluir_imagenes=True`` se anexan las imagenes (util solo para
+    revisar a pantalla).
+    """
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
 
@@ -453,12 +465,18 @@ def generar_informe(
     _build_index_table(doc, expediente)
 
     _add_heading(doc, "3. Fichas por documento", 1)
-    doc.add_paragraph(
-        "Cada ficha reproduce los datos extraidos del documento, su nivel de confianza "
-        "y, cuando esta disponible, el recorte de la imagen original."
-    )
+    if incluir_imagenes:
+        doc.add_paragraph(
+            "Cada ficha reproduce los datos extraidos del documento, su nivel de "
+            "confianza y el recorte de la imagen original."
+        )
+    else:
+        doc.add_paragraph(
+            "Cada ficha reproduce los datos extraidos del documento y su nivel de "
+            "confianza. Las imagenes de los documentos estan en el PDF compilado."
+        )
     for number, item in enumerate(expediente.documentos, start=1):
-        _build_document_card(doc, item, number, image_root)
+        _build_document_card(doc, item, number, image_root, incluir_imagenes)
 
     _build_verification_annex(doc, expediente)
 

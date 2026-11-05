@@ -13,7 +13,12 @@ from docx import Document as DocxDocument
 from documental.layout import build_lines, split_blocks
 from documental.models import CONF_ALTA, CONF_FALTA, Document, Expediente, Field
 from documental.ocr import Token
-from documental.pipeline import _attach_payment_voucher, _block_family, _is_noise
+from documental.pipeline import (
+    _attach_payment_voucher,
+    _block_family,
+    _is_noise,
+    _propagar_folio,
+)
 from documental.revisor import cargar_expediente, generar_revisor
 from documental.report_docx import generar_informe
 from documental.titulares import TitularConfig, build_titulares, resolve_expediente
@@ -247,4 +252,71 @@ class TestEtiquetasDeFormulario:
         assert not plausible_person_name("DATOS DEL PACIENTE")
         assert plausible_person_name("GLORIA ESTER SOTO PEREZ")
 
+
+
+
+class TestFolioDeLaMismaHoja:
+    """El numero de identificacion se hereda entre bloques de la misma hoja."""
+
+    @staticmethod
+    def _doc_hoja(index: int, page: int = 5) -> Document:
+        return Document(
+            doc_id=f"h{index}", source_file="f.pdf", page=page, index_in_page=index
+        )
+
+    def test_hereda_el_folio_de_otra_parte_de_la_hoja(self):
+        con_folio = self._doc_hoja(1)
+        con_folio.folio = Field("860951008", CONF_ALTA, "860951008")
+        sin_folio = self._doc_hoja(2)
+        _propagar_folio([con_folio, sin_folio])
+        assert sin_folio.folio.value == "860951008"
+        assert sin_folio.folio.confidence != CONF_ALTA  # queda para contrastar
+
+    def test_no_hereda_si_la_hoja_tiene_dos_folios_distintos(self):
+        # Dos bonos distintos en la misma hoja: cada uno con su numero.
+        primero = self._doc_hoja(1)
+        primero.folio = Field("111111111", CONF_ALTA, "111111111")
+        segundo = self._doc_hoja(2)
+        segundo.folio = Field("222222222", CONF_ALTA, "222222222")
+        tercero = self._doc_hoja(3)
+        _propagar_folio([primero, segundo, tercero])
+        assert tercero.folio.is_empty
+
+    def test_no_hereda_entre_hojas_distintas(self):
+        uno = self._doc_hoja(1, page=5)
+        uno.folio = Field("860951008", CONF_ALTA, "860951008")
+        otro = self._doc_hoja(2, page=6)
+        _propagar_folio([uno, otro])
+        assert otro.folio.is_empty
+
+
+class TestInformeWord:
+    """El Word de trabajo no lleva imagenes: ya estan en el PDF del tribunal."""
+
+    def _expediente(self, tmp_path):
+        from PIL import Image
+
+        render = tmp_path / "render"
+        render.mkdir()
+        Image.new("RGB", (400, 600), (245, 245, 245)).save(render / "recorte.png")
+        doc = _doc_simple(1, "GLORIA ESTER SOTO PEREZ", "12.345.678-5")
+        doc.imagen = "recorte.png"
+        return resolve_expediente([doc], "carpeta", "2026-11-04"), render
+
+    def test_por_defecto_no_inserta_imagenes(self, tmp_path):
+        expediente, render = self._expediente(tmp_path)
+        destino = generar_informe(expediente, tmp_path / "sin.docx", image_root=render)
+        assert len(DocxDocument(str(destino)).inline_shapes) == 0
+
+    def test_con_imagenes_las_inserta_y_pesa_mas(self, tmp_path):
+        expediente, render = self._expediente(tmp_path)
+        sin = generar_informe(expediente, tmp_path / "sin.docx", image_root=render)
+        con = generar_informe(
+            expediente,
+            tmp_path / "con.docx",
+            image_root=render,
+            incluir_imagenes=True,
+        )
+        assert len(DocxDocument(str(con)).inline_shapes) == 1
+        assert con.stat().st_size > sin.stat().st_size
 

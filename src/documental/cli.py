@@ -176,7 +176,12 @@ def _cmd_revisor(args: argparse.Namespace) -> int:
 def _cmd_informe(args: argparse.Namespace) -> int:
     expediente = cargar_expediente(Path(args.json))
     render = Path(args.render) if args.render else None
-    destino = generar_informe(expediente, Path(args.docx), image_root=render)
+    destino = generar_informe(
+        expediente,
+        Path(args.docx),
+        image_root=render,
+        incluir_imagenes=args.con_imagenes,
+    )
     print(f"Informe Word: {destino}")
     return 0
 
@@ -248,6 +253,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_inf.add_argument("json", help="Expediente JSON (base o corregido)")
     p_inf.add_argument("--docx", default="salidas/informe.docx", help="Word de salida")
     p_inf.add_argument("--render", default="salidas/render", help="Carpeta de recortes PNG")
+    p_inf.add_argument(
+        "--con-imagenes", action="store_true", dest="con_imagenes",
+        help="Incluir los recortes de imagen en el Word (por defecto no: el PDF ya los tiene)",
+    )
     p_inf.set_defaults(func=_cmd_informe)
 
     p_comp = sub.add_parser(

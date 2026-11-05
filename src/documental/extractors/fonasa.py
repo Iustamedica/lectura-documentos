@@ -78,25 +78,26 @@ _BENEFICIARIO_LINE = re.compile(
 )
 
 
-def _label_to_text(label: str) -> str:
-    """Convierte un patron regex simple en etiqueta de texto para recortar."""
-    text = label.replace("\\", "").replace("(?:", "")
-    return text.strip("()?:| ")
-
-
 def _money_near(lines: list[Line], labels: tuple[str, ...]) -> tuple[int | None, str]:
-    """Busca un monto en la linea de la etiqueta o en la inmediatamente siguiente."""
+    """Busca un monto en la linea de la etiqueta o en la inmediatamente siguiente.
+
+    Se usa el texto que realmente matcheo el patron en la linea plegada, no una
+    reconstruccion del regex: reconstruir la etiqueta dejaba "\\s*" convertido en
+    "s*" y el monto terminaba tomandose del primer numero de la linea.
+    """
     for index, line in enumerate(lines):
         folded = fold(line.text)
         for label in labels:
-            if re.search(label, folded):
-                value = parse_clp(line_value_after(line, _label_to_text(label)) or line.text)
+            match = re.search(label, folded)
+            if not match:
+                continue
+            value = parse_clp(line_value_after(line, match.group(0)) or line.text)
+            if value:
+                return value, line.text
+            if index + 1 < len(lines):
+                value = parse_clp(lines[index + 1].text)
                 if value:
-                    return value, line.text
-                if index + 1 < len(lines):
-                    value = parse_clp(lines[index + 1].text)
-                    if value:
-                        return value, f"{line.text} {lines[index + 1].text}"
+                    return value, f"{line.text} {lines[index + 1].text}"
     return None, ""
 
 
@@ -161,6 +162,17 @@ def extract_fonasa(block: Block, doc: Document) -> Document:
     )
     if folio:
         doc.folio.set(folio, CONF_ALTA, folio)
+    else:
+        # En los bonos que vienen rotados (la hoja apaisada se escanea girada) el
+        # folio queda impreso en el borde, lejos de la etiqueta "FOLIO": el OCR
+        # lo entrega como primera palabra del bloque. Los folios FONASA tienen 9
+        # digitos; se aceptan 9 a 12 sin separadores y con confianza media para
+        # que se pueda contrastar con el original.
+        inicial = first_match((r"(?m)^\s*(\d{9,12})(?!\d)",), text)
+        if inicial:
+            doc.folio.set(
+                inicial, CONF_MEDIA, text[:40].strip(), "numero al inicio del documento"
+            )
 
     edad = first_match((r"edad\s*:?\s*(\d{1,3})",), text)
     if edad and int(edad) < 120:

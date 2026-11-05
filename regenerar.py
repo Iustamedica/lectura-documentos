@@ -30,6 +30,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--html", default="", help="Salida del revisor HTML")
     parser.add_argument("--docx", default="", help="Salida del informe Word")
     parser.add_argument("--render", default="", help="Carpeta de recortes PNG")
+    parser.add_argument(
+        "--con-imagenes", action="store_true", dest="con_imagenes",
+        help="Incluir los recortes en el Word (por defecto no)",
+    )
     args = parser.parse_args(argv)
 
     ruta_json = Path(args.json)
@@ -56,7 +60,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.docx:
         destino = Path(args.docx)
         generar_informe(
-            expediente, destino, image_root=Path(args.render) if args.render else None
+            expediente,
+            destino,
+            image_root=Path(args.render) if args.render else None,
+            incluir_imagenes=args.con_imagenes,
         )
         print(f"Informe: {destino}")
 

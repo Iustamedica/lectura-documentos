@@ -83,6 +83,34 @@ TOTAL 3.900
 """
 
 
+class TestFolioDelBonoRotado:
+    """Bono escaneado girado: el folio va en el borde, sin su etiqueta al lado."""
+
+    def test_folio_al_inicio_del_bloque_se_extrae(self):
+        bloque = block_from_text(
+            "860951008 VALIDO SOLO PARA ESTA FECHA DE EMISION\n"
+            "Copago Otra Bonificacion* $2500 $2160 $10.330 A Pagar: $ 10330"
+        )
+        doc = make_doc()
+        get_extractor("bono_fonasa")(bloque, doc)
+        assert doc.folio.value == "860951008"
+
+    def test_el_folio_no_se_confunde_con_el_monto(self):
+        bloque = block_from_text(
+            "860951008 VALIDO SOLO PARA ESTA FECHA DE EMISION\n"
+            "Copago Otra Bonificacion* $2500 $2160 $10.330 A Pagar: $ 10330"
+        )
+        doc = make_doc()
+        get_extractor("bono_fonasa")(bloque, doc)
+        assert doc.monto_total.value == 10330
+
+    def test_un_numero_corto_al_inicio_no_es_folio(self):
+        bloque = block_from_text("12345 Copago $2500\nA Pagar: $ 2500")
+        doc = make_doc()
+        get_extractor("bono_fonasa")(bloque, doc)
+        assert doc.folio.is_empty
+
+
 class TestBoletaSii:
     def test_extrae_titular_y_emisor(self):
         doc = get_extractor("boleta_sii")(block_from_text(BOLETA_SII), make_doc())
