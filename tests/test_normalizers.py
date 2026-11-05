@@ -127,7 +127,7 @@ class TestRutPersonaVsEmpresa:
 
     def test_rut_de_empresa_no_es_persona(self):
         assert not is_person_rut("33.333.333-3")  # Centro Oftalmologico
-        assert not is_person_rut("78.445.210-7")  # Optica
+        assert not is_person_rut("77.777.777-7")  # Optica
         assert not is_person_rut("71.457.900-2")  # Fundacion
         assert not is_person_rut("76.305.804-2")  # Centro medico
 

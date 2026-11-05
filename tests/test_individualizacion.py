@@ -29,6 +29,7 @@ def _doc(
     fecha: date | None = None,
     tipo: str | None = None,
     index: int = 1,
+    texto: str = "",
 ) -> Document:
     doc = Document(
         doc_id=f"{archivo}-p{page}-{index}",
@@ -36,6 +37,7 @@ def _doc(
         page=page,
         index_in_page=index,
         familia=familia,
+        texto_ocr=texto,
     )
     if folio:
         doc.folio = Field(folio, CONF_ALTA, folio)
@@ -135,7 +137,8 @@ class TestNumeracion:
         docs = [_doc(1, folio="123"), _doc(2, folio="123", tipo="Bono FONASA")]
         grupo = agrupar(docs)[0]
         assert grupo.valor("tipo_documento") == "Bono FONASA"
-        assert grupo.tipo == "Bono FONASA"
+        # El nombre del grupo es el canonico, no el encabezado del OCR.
+        assert grupo.tipo == "Bono de atencion FONASA"
 
     def test_sin_tipo_usa_la_etiqueta_de_la_familia(self):
         grupos = agrupar([_doc(1, familia="pagare")])
@@ -158,11 +161,13 @@ class TestTablaDeIndividualizacion:
                 _doc(
                     1,
                     archivo="b.pdf",
+                    familia="ticket_farmacia",
                     folio="999",
                     rut="11.111.111-1",
                     nombre="LUIS ANDRES SOTO PEREZ",
                     fecha=date(2026, 1, 15),
                     tipo="Ticket de farmacia",
+                    texto="FARMACIA CRUZ VERDE\nTICKET 999\nTOTAL $10.000",
                 ),
             ]
         )
@@ -174,7 +179,8 @@ class TestTablaDeIndividualizacion:
         fila = filas(self._grupos())[0]
         assert fila["N"] == "1"
         assert fila["fecha"] == "15-01-2026"
-        assert fila["tipo"] == "Ticket de farmacia"
+        assert fila["tipo"] == "Boleta de farmacia"
+        assert fila["categoria"] == "Boletas y facturas"
         assert fila["rut_titular"] == "11.111.111-1"
         assert fila["archivo"] == "b.pdf"
 
@@ -182,7 +188,7 @@ class TestTablaDeIndividualizacion:
         path = escribir_csv(self._grupos(), tmp_path / "ind.csv")
         lineas = path.read_text(encoding="utf-8-sig").strip().splitlines()
         assert len(lineas) == 3  # encabezado + 2 documentos
-        assert lineas[0].startswith("N;tipo;fecha")
+        assert lineas[0].startswith("N;categoria;tipo;fecha")
 
     def test_word_tiene_una_fila_por_documento(self, tmp_path):
         path = escribir_docx(self._grupos(), tmp_path / "ind.docx")

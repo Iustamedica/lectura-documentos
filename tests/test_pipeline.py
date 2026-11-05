@@ -266,10 +266,10 @@ class TestFolioDeLaMismaHoja:
 
     def test_hereda_el_folio_de_otra_parte_de_la_hoja(self):
         con_folio = self._doc_hoja(1)
-        con_folio.folio = Field("860951008", CONF_ALTA, "860951008")
+        con_folio.folio = Field("555000111", CONF_ALTA, "555000111")
         sin_folio = self._doc_hoja(2)
         _propagar_folio([con_folio, sin_folio])
-        assert sin_folio.folio.value == "860951008"
+        assert sin_folio.folio.value == "555000111"
         assert sin_folio.folio.confidence != CONF_ALTA  # queda para contrastar
 
     def test_no_hereda_si_la_hoja_tiene_dos_folios_distintos(self):
@@ -284,7 +284,7 @@ class TestFolioDeLaMismaHoja:
 
     def test_no_hereda_entre_hojas_distintas(self):
         uno = self._doc_hoja(1, page=5)
-        uno.folio = Field("860951008", CONF_ALTA, "860951008")
+        uno.folio = Field("555000111", CONF_ALTA, "555000111")
         otro = self._doc_hoja(2, page=6)
         _propagar_folio([uno, otro])
         assert otro.folio.is_empty

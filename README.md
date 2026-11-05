@@ -230,6 +230,70 @@ consecutivas del mismo archivo que comparten familia, folio y titular. Si un
 documento quedo mal unido o separado, corrija la fecha o el folio en el revisor
 y vuelva a compilar.
 
+### Paso 5: ordenar el expediente por categoria (carpeta `V.1`)
+
+```bash
+.venv/bin/python -m documental.cli ordenar salidas/expediente.json \
+    --origen salidas/pdf --origen ../../escaneos-csm \
+    --prestadores prestadores.json \
+    --destino V.1
+```
+
+Arma un arbol en el que **cada documento es un PDF propio**, archivado segun su
+genero, y deja en la raiz el indice y el manifiesto:
+
+```
+V.1/
+  01-bonos/00-bonos.pdf            consolidado de la categoria
+  01-bonos/004 15-05-2023 Bono de atencion FONASA GLORIA ESTER SOTO PEREZ.pdf
+  02-boletas/...
+  03-fichas/CLINICA LOS ROBLES/... una carpeta por prestador
+  04-recetas/...
+  05-certificados/...
+  06-otros/...
+  indice.csv                       tabla completa (Excel, separador ;)
+  indice.docx                      la misma tabla, con una seccion por categoria
+  expediente-refinado.json         expediente con los tipos ya normalizados
+  LEEME.txt                        manifiesto: que se genero y que revisar
+```
+
+Cada PDF individual lleva el mismo encabezado estampado del PDF compilado, de
+modo que la hoja sigue siendo identificable aunque se la separe del expediente.
+
+**Como decide la categoria.** Primero traduce el encabezado del OCR a un nombre
+canonico del instrumento (`categorias.tipo_canonico`) y de ahi deriva la carpeta.
+El orden de las comprobaciones importa: un bono puede contener la palabra
+"certificado", y una biometria ocular trae "ESF/CIL/EJE" sin ser una receta.
+
+| Categoria | Se individualiza con |
+|---|---|
+| `01-bonos` | nombre del instrumento, emisor, folio, paciente y receptor |
+| `02-boletas` | tipo (boleta/factura), razon social y RUT, detalle de la compra y valor |
+| `03-fichas` | nombre del documento (epicrisis, solicitud de examenes, pabellon, interconsulta, DAU, examen optico, ficha), prestador y fecha de atencion |
+| `04-recetas` | paciente, fecha y prestador que firma. **El medicamento manuscrito no se transcribe** |
+| `05-certificados` | emisor y fecha |
+| `06-otros` | pagare, mandato, acta y lo que no se pudo clasificar |
+
+**Las fichas se agrupan por prestador.** El nombre se busca primero en el
+encabezado del documento y solo despues en el resto del texto (el OCR de estos
+escaneos destruye el encabezado: "IN.1", "mmo"). Para no fijar en el codigo
+nombres que pertenecen a un expediente concreto, la tabla de prestadores se pasa
+con `--prestadores prestadores.json`:
+
+```json
+[{"nombre": "Clinica Los Robles", "patrones": ["robles"]},
+ {"nombre": "Optica Vista Clara", "patrones": ["vista[ ]*clara"]}]
+```
+
+Los patrones se comparan contra el texto plegado (minusculas sin tildes). Las
+fichas cuyo prestador no se reconoce van a `SIN PRESTADOR IDENTIFICADO` y quedan
+contadas en el `LEEME.txt`: nunca se inventa un prestador.
+
+Con `--comprimir` recomprime solo los PDF consolidados de cada categoria (los
+documentos individuales conservan la resolucion original). Con `--sin-estampar`
+no agrega encabezado, y con `--dry-run` informa como quedaria la carpeta sin
+escribir nada.
+
 ### Regenerar sin repetir el OCR
 
 Si cambia la logica de agrupacion de titulares (o `caso.json`) y no quiere
@@ -434,6 +498,27 @@ Limitaciones de la conversion de fotos y de la individualizacion:
   agrupacion une hojas consecutivas del mismo archivo con igual familia, folio y
   titular; ante la duda deja documentos separados.
 
+Limitaciones del ordenamiento por categoria (`ordenar`):
+
+- **El nombre canonico se deduce del texto del OCR.** Si el encabezado esta
+  destruido, el documento cae en `06-otros` en vez de forzar una categoria. Se
+  cuentan en el `LEEME.txt` para revisarlos a mano.
+- **La tabla de prestadores es del caso, no del programa.** Sin
+  `--prestadores prestadores.json` solo se reconocen las cadenas de uso comun y
+  las marcas genericas ("SPA", "LTDA", "clinica", "hospital"). Las fichas de un
+  centro cuyo nombre el OCR no refleje van a `SIN PRESTADOR IDENTIFICADO`.
+- **El prestador se busca primero en el encabezado y despues en todo el texto.**
+  Es deliberado: sin ese respaldo, casi ninguna ficha tendria prestador porque el
+  OCR destroza los encabezados. El costo es que un documento sellado por un
+  centro y firmado por otro se atribuye al del encabezado.
+- **La fecha del documento no se corrige sola.** Una fecha mal leida por el OCR
+  (por ejemplo la fecha de nacimiento tomada como fecha de atencion) se propaga
+  al nombre del archivo. Conviene revisar el `indice.csv` antes de presentar.
+- **Un RUT que es a la vez del paciente y del profesional se descarta.** Si el
+  pie de pagina imprime el RUT del medico que firma y el bloque se une al del
+  nombre del paciente, el par nombre/RUT resultante no corresponde a nadie; en
+  ese caso se conserva el nombre y se anula el RUT, con la nota correspondiente.
+
 ---
 
 ## 8. Estructura del proyecto
@@ -459,6 +544,8 @@ herramientas/documental/          # ESTE repositorio: solo codigo, sin datos
 │   ├── titulares.py           # agrupacion por RUT y parentesco
 │   ├── pipeline.py            # orquestacion de punta a punta
 │   ├── individualizacion.py   # agrupar hojas, numerar DOC-NN, tabla del escrito
+│   ├── categorias.py          # nombre canonico del instrumento y categoria
+│   ├── organizar.py           # carpeta V.1: un PDF por documento, por categoria
 │   ├── compilar.py            # PDF unico con encabezado estampado y marcadores
 │   ├── report_docx.py         # informe Word
 │   ├── revisor.py             # revisor HTML autocontenido

@@ -29,7 +29,7 @@ class TestClasificacion:
         assert classify(texto).familia == FONASA
 
     def test_boleta_sii(self):
-        texto = "OPTI STORE SPA R.U.T.: 78.445.210-7 BOLETA ELECTRÓNICA GIRO OPTICA"
+        texto = "OPTICA VISTA CLARA SPA R.U.T.: 77.777.777-7 BOLETA ELECTRÓNICA GIRO OPTICA"
         assert classify(texto).familia in {SII_BOLETA, OPTICA}
 
     def test_ticket_farmacia(self):

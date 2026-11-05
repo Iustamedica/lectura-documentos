@@ -12,6 +12,7 @@ salidas*/
 #   - escaneos (PDF/escaneos originales con datos clinicos)
 #   - cualquier JSON corregido del revisor
 caso.json
+prestadores.json
 escaneos*/
 *.pdf
 expediente*.json

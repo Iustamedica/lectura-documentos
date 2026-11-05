@@ -29,10 +29,18 @@ import argparse
 import sys
 from pathlib import Path
 
+from .categorias import CATEGORIAS, cargar_prestadores
 from .compilar import CALIDAD_JPEG, DPI_COMPRESION, compilar
 from .individualizacion import agrupar, escribir_csv, escribir_docx
 from .ingesta import DPI_CONVERSION, preparar
 from .ocr import TARGET_HEIGHT
+from .organizar import (
+    agrupar_refinado,
+    escribir_indice_csv,
+    escribir_indice_docx,
+    escribir_leeme,
+    ordenar,
+)
 from .pipeline import PipelineOptions, process_folder, save_expediente
 from .revisor import cargar_expediente, generar_revisor
 from .report_docx import generar_informe
@@ -73,6 +81,79 @@ def _cmd_preparar(args: argparse.Namespace) -> int:
         print(f"Mapa foto -> PDF: {resultado.escribir_mapa(Path(args.mapa))}")
     if not resultado.dry_run:
         print(f"PDF en: {resultado.destino}")
+    return 0
+
+
+def _cmd_ordenar(args: argparse.Namespace) -> int:
+    expediente = cargar_expediente(Path(args.json))
+    if not expediente.documentos:
+        print("Error: el expediente no tiene documentos.", file=sys.stderr)
+        return 2
+    if not args.origen:
+        print(
+            "Error: indique donde estan los archivos originales con --origen.",
+            file=sys.stderr,
+        )
+        return 2
+
+    prestadores = cargar_prestadores(Path(args.prestadores) if args.prestadores else None)
+    grupos = agrupar_refinado(expediente.documentos, prestadores)
+    if not grupos:
+        print("Error: no se pudo agrupar ningun documento.", file=sys.stderr)
+        return 2
+
+    destino = Path(args.destino)
+    resultado = ordenar(
+        grupos,
+        origen=[Path(ruta) for ruta in args.origen],
+        destino=destino,
+        estampar=not args.sin_estampar,
+        comprimir=args.comprimir,
+        dpi=args.dpi,
+        calidad=args.calidad,
+        prestadores=prestadores,
+        dry_run=args.dry_run,
+    )
+
+    modo = " (simulacion: no se escribio nada)" if args.dry_run else ""
+    print(f"Documentos: {resultado.documentos} | paginas: {resultado.paginas}{modo}")
+    for clave, etiqueta, carpeta in CATEGORIAS:
+        total = resultado.por_categoria.get(clave, 0)
+        if total:
+            print(f"  {carpeta:16s} {total:4d}  {etiqueta}")
+    if resultado.por_prestador:
+        print("Fichas por prestador:")
+        for prestador, total in sorted(
+            resultado.por_prestador.items(), key=lambda par: -par[1]
+        ):
+            print(f"  {total:4d}  {prestador}")
+    if resultado.sin_prestador:
+        print(
+            f"AVISO: {resultado.sin_prestador} ficha(s) sin prestador identificado",
+            file=sys.stderr,
+        )
+    if resultado.sin_clasificar:
+        print(
+            f"AVISO: {resultado.sin_clasificar} documento(s) sin clasificar",
+            file=sys.stderr,
+        )
+    if resultado.compartidas:
+        print(
+            f"AVISO: {len(resultado.compartidas)} hoja(s) con mas de un documento "
+            "(se repiten, una vez por documento)",
+            file=sys.stderr,
+        )
+    for faltante in resultado.faltantes[:10]:
+        print(f"AVISO: no se encontro el original: {faltante}", file=sys.stderr)
+
+    if args.dry_run:
+        return 0
+
+    print(f"Indice CSV: {escribir_indice_csv(grupos, destino / 'indice.csv')}")
+    print(f"Indice Word: {escribir_indice_docx(grupos, destino / 'indice.docx')}")
+    print(f"Manifiesto: {escribir_leeme(resultado, destino / 'LEEME.txt', origen=args.origen)}")
+    save_expediente(expediente, destino / "expediente-refinado.json")
+    print(f"Carpeta ordenada: {destino} ({resultado.bytes / (1024 * 1024):.1f} MB)")
     return 0
 
 
@@ -258,6 +339,44 @@ def build_parser() -> argparse.ArgumentParser:
         help="Incluir los recortes de imagen en el Word (por defecto no: el PDF ya los tiene)",
     )
     p_inf.set_defaults(func=_cmd_informe)
+
+    p_ord = sub.add_parser(
+        "ordenar",
+        help="Agrupa los documentos por categoria en una carpeta (un PDF por documento)",
+    )
+    p_ord.add_argument("json", help="Expediente JSON")
+    p_ord.add_argument(
+        "--origen", action="append", default=[], metavar="CARPETA",
+        help="Carpeta con los archivos originales (se puede repetir)",
+    )
+    p_ord.add_argument(
+        "--destino", default="V.1", help="Carpeta de salida (por defecto V.1)"
+    )
+    p_ord.add_argument(
+        "--prestadores", default="",
+        help="JSON con la tabla de prestadores para agrupar las fichas",
+    )
+    p_ord.add_argument(
+        "--sin-estampar", action="store_true", dest="sin_estampar",
+        help="No agrega el encabezado de identificacion a cada documento",
+    )
+    p_ord.add_argument(
+        "--comprimir", action="store_true",
+        help="Recomprime las imagenes de los PDF consolidados por categoria",
+    )
+    p_ord.add_argument(
+        "--dpi", type=int, default=DPI_COMPRESION,
+        help=f"DPI objetivo al comprimir (por defecto {DPI_COMPRESION})",
+    )
+    p_ord.add_argument(
+        "--calidad", type=int, default=CALIDAD_JPEG,
+        help=f"Calidad JPEG al comprimir, 0-100 (por defecto {CALIDAD_JPEG})",
+    )
+    p_ord.add_argument(
+        "--dry-run", action="store_true", dest="dry_run",
+        help="No escribe nada; solo informa como quedaria la carpeta",
+    )
+    p_ord.set_defaults(func=_cmd_ordenar)
 
     p_comp = sub.add_parser(
         "compilar", help="PDF unico con encabezados y tabla de individualizacion"

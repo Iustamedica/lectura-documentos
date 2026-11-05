@@ -61,7 +61,7 @@ class TestBonoFonasa:
         assert doc.monto_total.value == 17070
 
     def test_rut_ilegible_no_rompe(self):
-        texto = BONO_FONASA.replace("00012345678-5 MARIA", "000780069Z-7 MARIA")
+        texto = BONO_FONASA.replace("00012345678-5 MARIA", "00099999999-0 MARIA")
         doc = get_extractor("bono_fonasa")(block_from_text(texto), make_doc())
         # El segundo RUT (Beneficiario) sigue siendo valido y se usa.
         assert doc.titular_rut.value == "12.345.678-5"
@@ -69,11 +69,11 @@ class TestBonoFonasa:
 
 
 BOLETA_SII = """
-OPTI STORE SPA
-ópticas R.U.T.: 78.445.210-7
-SCHILLING BOLETA ELECTRÓNICA
+OPTICA VISTA CLARA SPA
+ópticas R.U.T.: 77.777.777-7
+VISTA CLARA BOLETA ELECTRÓNICA
 GIRO OPTICA
-VICYORIA 480 SANTIAGO CENTRO Casa Matriz 22 510 7203 N° 3605449
+AV. LOS ALERCES 480 SANTIAGO CENTRO Casa Matriz 22 510 7203 N° 3605449
 Señor (es): GLORIA ESTER SOTO PEREZ R.U.T.: 12.345.678-5
 Fecha: 16/12/2025
 ITEM DESCRIPCION CUOTAS CANTIDAD UNITARIO VALOR VALOR TOTAL
@@ -88,16 +88,16 @@ class TestFolioDelBonoRotado:
 
     def test_folio_al_inicio_del_bloque_se_extrae(self):
         bloque = block_from_text(
-            "860951008 VALIDO SOLO PARA ESTA FECHA DE EMISION\n"
+            "555000111 VALIDO SOLO PARA ESTA FECHA DE EMISION\n"
             "Copago Otra Bonificacion* $2500 $2160 $10.330 A Pagar: $ 10330"
         )
         doc = make_doc()
         get_extractor("bono_fonasa")(bloque, doc)
-        assert doc.folio.value == "860951008"
+        assert doc.folio.value == "555000111"
 
     def test_el_folio_no_se_confunde_con_el_monto(self):
         bloque = block_from_text(
-            "860951008 VALIDO SOLO PARA ESTA FECHA DE EMISION\n"
+            "555000111 VALIDO SOLO PARA ESTA FECHA DE EMISION\n"
             "Copago Otra Bonificacion* $2500 $2160 $10.330 A Pagar: $ 10330"
         )
         doc = make_doc()
@@ -122,8 +122,8 @@ class TestBoletaSii:
         doc = get_extractor("boleta_sii")(block_from_text(BOLETA_SII), make_doc())
         assert doc.titular_nombre.value == "GLORIA ESTER SOTO PEREZ"
         assert doc.titular_rut.value == "12.345.678-5"
-        assert doc.emisor_rut.value == "78.445.210-7"
-        assert "OPTI STORE" in doc.emisor_nombre.value
+        assert doc.emisor_rut.value == "77.777.777-7"
+        assert "VISTA CLARA" in doc.emisor_nombre.value
 
     def test_extrae_fecha_folio_y_total(self):
         doc = get_extractor("boleta_sii")(block_from_text(BOLETA_SII), make_doc())

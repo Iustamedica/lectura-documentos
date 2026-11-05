@@ -4,7 +4,7 @@ Cubre tanto la boleta de honorarios electronica como la boleta electronica
 generica (optica, centro medico, etc.):
 
     EMISOR SPA
-    R.U.T.: 78.445.210-7          BOLETA ELECTRONICA N 3605449
+    R.U.T.: 77.777.777-7          BOLETA ELECTRONICA N 3605449
     GIRO ...
     Senor (es): TITULAR          R.U.T.: 12.345.678-5
     Fecha: 16/12/2025
