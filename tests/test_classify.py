@@ -52,3 +52,15 @@ class TestClasificacion:
         resultado = classify(texto)
         assert resultado.confianza in {"media", "alta"}
         assert resultado.puntajes
+
+
+def test_eje_dentro_de_otra_palabra_no_es_receta_optica():
+    from documental.classify import classify
+    c = classify("Se solicita la ejecutoria de la sentencia. El tribunal resuelve conforme a derecho.")
+    assert c.familia != "receta_optica"
+
+
+def test_formula_optica_es_receta_optica():
+    from documental.classify import classify
+    c = classify("RECETA OPTICA  ESF -2.00  CIL -1.25  EJE 90  LEJOS")
+    assert c.familia == "receta_optica"

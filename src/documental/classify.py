@@ -6,6 +6,7 @@ palabras clave, porque el OCR rara vez entrega el encabezado perfecto.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from .models import CONF_ALTA, CONF_BAJA, CONF_MEDIA
@@ -62,7 +63,7 @@ _KEYWORDS: tuple[tuple[str, tuple[str, ...], float], ...] = (
     ),
     (
         OPTICA,
-        ("receta optica", "optica", "esf", "cil", "eje", "lejos", "cerca", "lentes"),
+        ("receta optica", "optica", "esf", "cil", "eje", "lentes"),
         3.0,
     ),
     (
@@ -99,12 +100,29 @@ class Classification:
         return FAMILY_LABELS.get(self.familia, self.familia)
 
 
+def _cuenta(folded: str, keywords: tuple[str, ...]) -> int:
+    """Cuenta cuantas palabras clave aparecen en el texto plegado.
+
+    Los tokens muy cortos (``eje``, ``cil``, ``esf``) se buscan como **palabra
+    completa** y no como subcadena, para que no calcen dentro de otras palabras
+    como "e**je**cutoria" o "fa**cil**mente" (falsos positivos).
+    """
+    total = 0
+    for keyword in keywords:
+        if len(keyword) <= 4 and keyword.isalpha():
+            if re.search(r"(?<!\w)" + re.escape(keyword) + r"(?!\w)", folded):
+                total += 1
+        elif keyword in folded:
+            total += 1
+    return total
+
+
 def classify(text: str) -> Classification:
     """Determina la familia del documento a partir de su texto OCR."""
     folded = fold(text)
     scores: dict[str, float] = {}
     for familia, keywords, weight in _KEYWORDS:
-        hits = sum(1 for keyword in keywords if keyword in folded)
+        hits = _cuenta(folded, keywords)
         if hits:
             scores[familia] = scores.get(familia, 0.0) + hits * weight
     if not scores:
