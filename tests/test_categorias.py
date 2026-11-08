@@ -282,3 +282,48 @@ class TestPatrones:
         assert patrones, "no se encontraron patrones que revisar"
         for nombre, patron in patrones:
             assert doble not in patron, f"{nombre} tiene la barra duplicada"
+
+
+class TestTiposAmpliados:
+    """Tipos adicionales frecuentes en un expediente (Chile)."""
+
+    def test_certificado_nacimiento(self):
+        from documental.categorias import T_CERT_NACIMIENTO
+        doc = _doc("CERTIFICADO DE NACIMIENTO\nCircunscripcion Santiago")
+        assert tipo_canonico(doc) == T_CERT_NACIMIENTO
+        assert categoria_de(doc) == CAT_CERTIFICADOS
+
+    def test_certificado_matrimonio_y_defuncion(self):
+        from documental.categorias import T_CERT_DEFUNCION, T_CERT_MATRIMONIO
+        assert tipo_canonico(_doc("CERTIFICADO DE MATRIMONIO\nx")) == T_CERT_MATRIMONIO
+        assert tipo_canonico(_doc("CERTIFICADO DE DEFUNCION\nx")) == T_CERT_DEFUNCION
+
+    def test_licencia_medica(self):
+        from documental.categorias import T_LICENCIA_MEDICA
+        doc = _doc("LICENCIA MEDICA\nNombre paciente X", familia="documento_clinico")
+        assert tipo_canonico(doc) == T_LICENCIA_MEDICA
+        assert categoria_de(doc) == CAT_CERTIFICADOS
+
+    def test_liquidacion_de_sueldo(self):
+        from documental.categorias import T_LIQUIDACION_SUELDO
+        doc = _doc("LIQUIDACION DE SUELDO\nHaberes y descuentos")
+        assert tipo_canonico(doc) == T_LIQUIDACION_SUELDO
+        assert categoria_de(doc) == CAT_OTROS
+
+    def test_comprobante_de_pago(self):
+        from documental.categorias import T_COMPROBANTE_PAGO
+        doc = _doc("COMPROBANTE DE TRANSFERENCIA\nMonto $50.000")
+        assert tipo_canonico(doc) == T_COMPROBANTE_PAGO
+        assert categoria_de(doc) == CAT_OTROS
+
+    def test_contrato_en_el_encabezado(self):
+        from documental.categorias import T_CONTRATO
+        doc = _doc("CONTRATO DE ARRIENDO\nEntre las partes")
+        assert tipo_canonico(doc) == T_CONTRATO
+        assert categoria_de(doc) == CAT_OTROS
+
+    def test_poder(self):
+        from documental.categorias import T_PODER
+        doc = _doc("PODER ESPECIAL\nEn Santiago")
+        assert tipo_canonico(doc) == T_PODER
+        assert categoria_de(doc) == CAT_OTROS

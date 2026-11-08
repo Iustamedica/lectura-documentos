@@ -99,6 +99,22 @@ T_PAGARE = "Pagare"
 T_MANDATO = "Mandato"
 T_PRESUPUESTO = "Presupuesto"
 T_ACTA_MEDIACION = "Acta de mediacion"
+
+# Tipos adicionales frecuentes en un expediente (Chile).
+T_CERT_NACIMIENTO = "Certificado de nacimiento"
+T_CERT_MATRIMONIO = "Certificado de matrimonio"
+T_CERT_DEFUNCION = "Certificado de defuncion"
+T_CERT_RESIDENCIA = "Certificado de residencia"
+T_LICENCIA_MEDICA = "Licencia medica"
+T_LIQUIDACION_SUELDO = "Liquidacion de sueldo"
+T_CERT_COTIZACIONES = "Certificado de cotizaciones (AFP)"
+T_COMPROBANTE_PAGO = "Comprobante de pago o transferencia"
+T_CARTOLA = "Cartola o estado de cuenta"
+T_CONTRATO = "Contrato"
+T_PODER = "Poder"
+T_ORDEN_ATENCION = "Orden de atencion"
+T_CONSENTIMIENTO = "Consentimiento informado"
+
 T_SIN_CLASIFICAR = "Documento sin clasificar"
 
 # Nombre canonico -> categoria donde se archiva.
@@ -127,6 +143,19 @@ TIPO_CATEGORIA: dict[str, str] = {
     T_PAGARE: CAT_OTROS,
     T_MANDATO: CAT_OTROS,
     T_ACTA_MEDIACION: CAT_OTROS,
+    T_CERT_NACIMIENTO: CAT_CERTIFICADOS,
+    T_CERT_MATRIMONIO: CAT_CERTIFICADOS,
+    T_CERT_DEFUNCION: CAT_CERTIFICADOS,
+    T_CERT_RESIDENCIA: CAT_CERTIFICADOS,
+    T_LICENCIA_MEDICA: CAT_CERTIFICADOS,
+    T_LIQUIDACION_SUELDO: CAT_OTROS,
+    T_CERT_COTIZACIONES: CAT_OTROS,
+    T_COMPROBANTE_PAGO: CAT_OTROS,
+    T_CARTOLA: CAT_OTROS,
+    T_CONTRATO: CAT_OTROS,
+    T_PODER: CAT_OTROS,
+    T_ORDEN_ATENCION: CAT_FICHAS,
+    T_CONSENTIMIENTO: CAT_FICHAS,
     T_SIN_CLASIFICAR: CAT_OTROS,
 }
 
@@ -366,6 +395,18 @@ def tipo_canonico(documento: Document) -> str:
     ):
         return T_BOLETA
 
+    # 2.5. Certificados con tipo especifico (Registro Civil, salud, laboral).
+    if "certificado de nacimiento" in texto:
+        return T_CERT_NACIMIENTO
+    if "certificado de matrimonio" in texto:
+        return T_CERT_MATRIMONIO
+    if "certificado de defuncion" in texto:
+        return T_CERT_DEFUNCION
+    if "certificado de residencia" in texto:
+        return T_CERT_RESIDENCIA
+    if "licencia medica" in texto:
+        return T_LICENCIA_MEDICA
+
     # 3. Certificados. El documento se titula "certificado" en el encabezado;
     #    la palabra suelta en el cuerpo no basta (una epicrisis puede mencionar
     #    un certificado de defuncion).
@@ -425,9 +466,35 @@ def tipo_canonico(documento: Document) -> str:
     if familia == "pagare" or "pagare" in texto:
         return T_PAGARE
 
+    # 7.5. Otros documentos clinicos con nombre propio en el encabezado.
+    if "consentimiento informado" in texto:
+        return T_CONSENTIMIENTO
+    if "orden de atencion" in texto or "orden de prestacion" in texto:
+        return T_ORDEN_ATENCION
+
     # 8. Ficha clinica generica (solo paciente y prestador en el encabezado).
     if familia in {"documento_clinico", "resultado_laboratorio"}:
         return T_FICHA
+
+    # 9. Documentos NO clinicos frecuentes en un expediente (van a "otros").
+    cabecera = fold(" ".join(_lineas(documento, 2)))
+    if "contrato" in cabecera:
+        return T_CONTRATO
+    if "poder especial" in texto or "poder notarial" in texto or "poder simple" in texto:
+        return T_PODER
+    if "liquidacion de sueldo" in texto or "liquidacion de remuneracion" in texto:
+        return T_LIQUIDACION_SUELDO
+    if "certificado de cotizaciones" in texto or ("cotizaciones" in texto and "afp" in texto):
+        return T_CERT_COTIZACIONES
+    if "cartola" in texto or "estado de cuenta" in texto:
+        return T_CARTOLA
+    if (
+        "comprobante de pago" in texto
+        or "comprobante de transferencia" in texto
+        or "transferencia bancaria" in texto
+        or "comprobante de deposito" in texto
+    ):
+        return T_COMPROBANTE_PAGO
     return T_SIN_CLASIFICAR
 
 
