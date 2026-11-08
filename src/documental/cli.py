@@ -274,7 +274,9 @@ def _cmd_procesar(args: argparse.Namespace) -> int:
         target_height=args.target_height,
     )
     print(f"Procesando {carpeta} (OCR local, puede tardar unos segundos por pagina)...")
-    expediente = process_folder(carpeta, options=options, titulares_config=config)
+    expediente = process_folder(
+        carpeta, options=options, titulares_config=config, recursivo=args.recursivo
+    )
     destino = save_expediente(expediente, Path(args.json))
     print(f"Documentos: {len(expediente.documentos)} | titulares: {len(expediente.titulares)}")
     for titular in expediente.titulares:
@@ -393,7 +395,9 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     )
 
     print("Paso 1 de 3: leyendo documentos (OCR local; puede tardar unos segundos por pagina)...")
-    expediente = process_folder(entrada_real, options=options, titulares_config=titulares)
+    expediente = process_folder(
+        entrada_real, options=options, titulares_config=titulares, recursivo=True
+    )
     save_expediente(expediente, json_path)
     print(f"   Documentos: {len(expediente.documentos)} | titulares: {len(expediente.titulares)}")
 
@@ -515,6 +519,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_proc.add_argument(
         "--image-prefix", default="render/", dest="image_prefix",
         help="Ruta relativa de los recortes dentro del HTML",
+    )
+    p_proc.add_argument(
+        "--recursivo", action="store_true",
+        help="Recorre tambien las subcarpetas (expedientes organizados en carpetas)",
     )
     p_proc.set_defaults(func=_cmd_procesar)
 

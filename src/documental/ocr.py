@@ -8,6 +8,7 @@ permite reconstruir lineas, columnas y detectar dos documentos en una hoja.
 from __future__ import annotations
 
 import io
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +20,12 @@ from PIL import Image
 # de alto, insuficientes para letra pequena. Se reescala a un alto objetivo.
 TARGET_HEIGHT = 2200
 MAX_SCALE = 3.0
+
+# Tope de pixeles al rasterizar una pagina o cargar una imagen. Algunos PDF
+# (p. ej. topografias con pagina gigante) a 250-300 dpi generarian imagenes de
+# 100+ millones de pixeles, que agotan la memoria y hacen el OCR eterno. Se baja
+# el dpi efectivo para no pasar de este presupuesto.
+MAX_PIXELS = 24_000_000
 
 
 @dataclass
@@ -116,21 +123,42 @@ class OCREngine:
         return tokens
 
 
-def render_pdf(path: Path, dpi: int = 300) -> list[Image.Image]:
-    """Renderiza cada pagina del PDF como imagen RGB a la resolucion indicada."""
+def render_pdf(path: Path, dpi: int = 300, max_pixels: int = MAX_PIXELS) -> list[Image.Image]:
+    """Renderiza cada pagina del PDF como imagen RGB a la resolucion indicada.
+
+    Si una pagina es tan grande que a ``dpi`` superaria ``max_pixels``, se baja
+    el dpi efectivo solo para esa pagina (evita imagenes gigantes y lentitud).
+    """
     pages: list[Image.Image] = []
     with pymupdf.open(path) as pdf:
         for page in pdf:
-            pixmap = page.get_pixmap(dpi=dpi, colorspace=pymupdf.csRGB)
+            ancho_pt, alto_pt = page.rect.width, page.rect.height
+            dpi_efectivo = dpi
+            if ancho_pt > 0 and alto_pt > 0:
+                escala = dpi / 72.0
+                pixeles = (ancho_pt * escala) * (alto_pt * escala)
+                if pixeles > max_pixels:
+                    dpi_efectivo = int(max(72, dpi * math.sqrt(max_pixels / pixeles)))
+            pixmap = page.get_pixmap(dpi=dpi_efectivo, colorspace=pymupdf.csRGB)
             image = Image.open(io.BytesIO(pixmap.tobytes("png"))).convert("RGB")
             pages.append(image)
     return pages
 
 
-def load_image(path: Path) -> list[Image.Image]:
-    """Carga un archivo de imagen suelto (JPG/PNG/TIFF) como una pagina."""
+def load_image(path: Path, max_pixels: int = MAX_PIXELS) -> list[Image.Image]:
+    """Carga un archivo de imagen suelto (JPG/PNG/TIFF) como una pagina.
+
+    Si la imagen supera ``max_pixels`` se reduce (evita fotos gigantes).
+    """
     with Image.open(path) as image:
-        return [image.convert("RGB")]
+        imagen = image.convert("RGB")
+    ancho, alto = imagen.size
+    if ancho * alto > max_pixels:
+        factor = math.sqrt(max_pixels / (ancho * alto))
+        imagen = imagen.resize(
+            (max(1, int(ancho * factor)), max(1, int(alto * factor))), Image.LANCZOS
+        )
+    return [imagen]
 
 
 def preprocess(image: Image.Image, *, target_height: int = TARGET_HEIGHT) -> Image.Image:

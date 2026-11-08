@@ -274,6 +274,7 @@ def process_folder(
     engine: OCREngine | None = None,
     options: PipelineOptions | None = None,
     titulares_config: list[TitularConfig] | None = None,
+    recursivo: bool = False,
 ):
     """Procesa todos los PDF/imagenes de una carpeta y arma el expediente.
 
@@ -281,15 +282,20 @@ def process_folder(
     Las recetas manuscritas necesitan conocer antes los nombres del expediente
     para reconstruir el paciente ilegible, asi que esas paginas se reprocesan
     reutilizando el OCR ya calculado (no se vuelve a leer el PDF).
+
+    Con ``recursivo=True`` recorre tambien las subcarpetas (util cuando el
+    expediente viene organizado en carpetas por prestador o por fecha).
     """
     folder = Path(folder)
     engine = engine or OCREngine()
     options = options or PipelineOptions()
     config = titulares_config or []
+    candidatos = folder.rglob("*") if recursivo else folder.iterdir()
     files = sorted(
         p
-        for p in folder.iterdir()
-        if p.suffix.lower() in {".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff"}
+        for p in candidatos
+        if p.is_file()
+        and p.suffix.lower() in {".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff"}
     )
 
     # Pasada 1: OCR unico + extraccion, guardando las paginas para reutilizarlas.
