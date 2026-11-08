@@ -604,3 +604,26 @@ git ls-files | grep -iE 'caso|escaneo|salida|pdf|docx'
 ```
 
 
+
+---
+
+## Créditos y colaboración
+
+Esta herramienta fue desarrollada en colaboración con **DeepSeek** (asistencia de IA en el
+diseño, la implementación y las pruebas). El motor de OCR y extracción corre **100% en local**
+y no envía documentos ni datos a servicios externos.
+
+Las decisiones jurídicas, la validación humana de los documentos y el criterio sobre los datos
+del expediente corresponden al equipo legal. La herramienta entrega una **primera versión
+editable** que siempre debe ser revisada por una persona.
+
+## Uso rapido (para abogados)
+
+Ver **[GUIA-USO-ABOGADOS.md](GUIA-USO-ABOGADOS.md)**. En resumen:
+
+1. Instalar una vez: `instalar.sh` (Linux/Mac) o `instalar.bat` (Windows).
+2. Copiar fotos y PDF en `Expediente/1. Documentos a procesar`.
+3. Doble clic en `Procesar documentos` y esperar.
+4. Revisar `Expediente/Resultados/Revision.html` y el `Informe.docx`.
+
+Por linea de comandos: `documental expediente --carpeta Expediente --abrir`.

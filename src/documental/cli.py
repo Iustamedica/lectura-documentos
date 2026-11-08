@@ -267,6 +267,142 @@ def _cmd_informe(args: argparse.Namespace) -> int:
     return 0
 
 
+def _abrir_salidas(carpeta: Path, html: Path, docx: Path) -> None:
+    """Abre (best-effort) la carpeta de resultados, el revisor y el Word."""
+    import platform
+    import subprocess
+    import webbrowser
+
+    try:
+        webbrowser.open(html.resolve().as_uri())
+    except Exception:
+        pass
+    sistema = platform.system()
+    for objetivo in (carpeta, docx):
+        try:
+            if sistema == "Darwin":
+                subprocess.Popen(["open", str(objetivo)])
+            elif sistema == "Windows":
+                subprocess.Popen(["cmd", "/c", "start", "", str(objetivo)])
+            else:
+                subprocess.Popen(["xdg-open", str(objetivo)])
+        except Exception:
+            pass
+
+
+def _cmd_expediente(args: argparse.Namespace) -> int:
+    """Proceso completo y simple: carpeta de documentos -> revisor + Word.
+
+    Crea la estructura de trabajo (``1. Documentos a procesar`` y ``Resultados``),
+    procesa todo lo que haya (PDF e imagenes), y deja la primera version editable
+    (revisor HTML) junto al informe Word.
+    """
+    from datetime import datetime
+
+    base = Path(args.carpeta)
+    base.mkdir(parents=True, exist_ok=True)
+    entrada = base / "1. Documentos a procesar"
+    resultados = base / "Resultados"
+    entrada.mkdir(exist_ok=True)
+    resultados.mkdir(exist_ok=True)
+
+    guia = entrada / "LEEME - aqui van los documentos.txt"
+    if not guia.exists():
+        guia.write_text(
+            "Coloque en esta carpeta TODAS las fotos (JPG/PNG) y PDF del expediente.\n"
+            "Pueden ser muchos archivos. Idealmente, escaneos derechos y legibles.\n"
+            "Luego ejecute 'Procesar documentos' (doble clic).\n",
+            encoding="utf-8",
+        )
+
+    sufijos = {".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff"}
+    archivos = [p for p in entrada.iterdir() if p.is_file() and p.suffix.lower() in sufijos]
+    if archivos:
+        entrada_real = entrada
+    else:
+        sueltos = [p for p in base.iterdir() if p.is_file() and p.suffix.lower() in sufijos]
+        if not sueltos:
+            print(
+                f"No hay documentos para procesar. Copie sus archivos en:\n  {entrada}",
+                file=sys.stderr,
+            )
+            return 2
+        entrada_real = base
+
+    render = resultados / "render"
+    json_path = resultados / "expediente.json"
+    html_path = resultados / "Revision.html"
+    docx_path = resultados / "Informe.docx"
+
+    titulares: list = []
+    caso = Path(args.caso) if getattr(args, "caso", "") else (base / "caso.json")
+    if caso.is_file():
+        titulares = load_titulares(caso)
+
+    options = PipelineOptions(
+        render_dir=render,
+        dpi=300,
+        min_confidence=0.35,
+        target_height=TARGET_HEIGHT,
+    )
+
+    print("Paso 1 de 3: leyendo documentos (OCR local; puede tardar unos segundos por pagina)...")
+    expediente = process_folder(entrada_real, options=options, titulares_config=titulares)
+    save_expediente(expediente, json_path)
+    print(f"   Documentos: {len(expediente.documentos)} | titulares: {len(expediente.titulares)}")
+
+    print("Paso 2 de 3: generando la revision para corregir...")
+    generar_revisor(expediente, html_path, image_rel_prefix="render/")
+
+    print("Paso 3 de 3: generando el informe Word...")
+    generar_informe(expediente, docx_path, image_root=render, incluir_imagenes=False)
+
+    documentos_dir = None
+    if getattr(args, "ordenar", False):
+        try:
+            print("   (extra) agrupando documentos por categoria en Resultados/Documentos ...")
+            prestadores = cargar_prestadores(None)
+            grupos = agrupar_refinado(expediente.documentos, prestadores)
+            documentos_dir = resultados / "Documentos"
+            ordenar(
+                grupos,
+                origen=[entrada_real],
+                destino=documentos_dir,
+                estampar=True,
+                comprimir=False,
+                prestadores=prestadores,
+                dry_run=False,
+            )
+        except Exception as error:  # no debe romper el proceso principal
+            print(f"   (aviso) no se pudo ordenar automaticamente: {error}", file=sys.stderr)
+            documentos_dir = None
+
+    registro = resultados / "Registro.txt"
+    with registro.open("w", encoding="utf-8") as fh:
+        fh.write(f"Proceso terminado: {datetime.now().isoformat(timespec='seconds')}\n")
+        fh.write(f"Entrada: {entrada_real}\n")
+        fh.write(f"Documentos detectados: {len(expediente.documentos)}\n")
+        fh.write(f"Titulares: {len(expediente.titulares)}\n")
+        fh.write(f"Advertencias: {len(expediente.advertencias)}\n\n")
+        fh.write("ARCHIVOS GENERADOS:\n")
+        fh.write(f"  - {html_path}  (abrir en el navegador para revisar/corregir)\n")
+        fh.write(f"  - {docx_path}  (informe Word)\n")
+        fh.write(f"  - {json_path}\n")
+        if documentos_dir:
+            fh.write(f"  - {documentos_dir}  (un PDF por documento, por categoria)\n")
+
+    print()
+    print(f"LISTO. Resultados en: {resultados}")
+    print(f"  Revision (revisar y corregir): {html_path.name}")
+    print(f"  Informe Word:                  {docx_path.name}")
+    if documentos_dir:
+        print(f"  Documentos ordenados:          {documentos_dir.name}/")
+
+    if getattr(args, "abrir", False):
+        _abrir_salidas(resultados, html_path, docx_path)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="documental",
@@ -414,6 +550,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="No escribe el PDF; solo informa y genera la tabla",
     )
     p_comp.set_defaults(func=_cmd_compilar)
+
+    p_exp = sub.add_parser(
+        "expediente",
+        help="Proceso completo: carpeta de documentos -> revision editable + Word",
+        description=(
+            "Toma una carpeta con fotos y PDF, crea la estructura de trabajo "
+            "('1. Documentos a procesar' y 'Resultados'), procesa todo y deja el "
+            "revisor HTML y el informe Word. Pensado para uso simple (doble clic)."
+        ),
+    )
+    p_exp.add_argument(
+        "--carpeta", default=".",
+        help="Carpeta de trabajo donde estan los documentos (por defecto el directorio actual)",
+    )
+    p_exp.add_argument(
+        "--caso", default="",
+        help="Archivo caso.json con titulares conocidos (opcional; por defecto busca caso.json en la carpeta)",
+    )
+    p_exp.add_argument(
+        "--ordenar", action="store_true",
+        help="Ademas, agrupa los documentos por categoria en Resultados/Documentos",
+    )
+    p_exp.add_argument(
+        "--abrir", action="store_true",
+        help="Abre la carpeta de resultados, el revisor y el Word al terminar",
+    )
+    p_exp.set_defaults(func=_cmd_expediente)
     return parser
 
 

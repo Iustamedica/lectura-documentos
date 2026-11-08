@@ -24,3 +24,6 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# Carpeta de trabajo del usuario (contiene datos del expediente): no versionar.
+Expediente/
