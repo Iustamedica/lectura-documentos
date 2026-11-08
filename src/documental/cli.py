@@ -47,6 +47,52 @@ from .report_docx import generar_informe
 from .titulares import load_titulares
 
 
+# --- Avisos de calidad y tamano (pensando en el Poder Judicial) ---
+# Limites de carga del Poder Judicial: por archivo y totales.
+LIMITE_PJ_ARCHIVO_MB = 10
+LIMITE_PJ_TOTAL_MB = 30
+RECOMENDACIONES = (
+    "Todos los documentos deben estar en la MISMA orientacion (derechos): asi el OCR "
+    "lee mejor y se reducen los errores.",
+    "El texto ESCRITO A MANO tiene baja precision: reviselo especialmente en Revision.html "
+    "antes de usar el informe.",
+    "Revise siempre el revisor y el informe: la herramienta es un asistente, no reemplaza "
+    "la revision del abogado.",
+)
+
+
+def _chequear_peso(resultados: Path) -> list[str]:
+    """Revisa el peso de los PDF generados contra los limites del Poder Judicial."""
+    lineas: list[str] = []
+    pdfs = [p for p in resultados.rglob("*.pdf") if p.is_file()]
+    if not pdfs:
+        lineas.append("Peso: aun no se generaron PDF (los PDF se crean con --ordenar).")
+        return lineas
+    total = sum(p.stat().st_size for p in pdfs) / (1024 * 1024)
+    lineas.append(f"Peso de los PDF generados: {total:.1f} MB en {len(pdfs)} archivo(s).")
+    lineas.append(
+        f"Limite del Poder Judicial: {LIMITE_PJ_ARCHIVO_MB} MB por archivo / "
+        f"{LIMITE_PJ_TOTAL_MB} MB en total."
+    )
+    grandes = [
+        (p, p.stat().st_size / (1024 * 1024))
+        for p in pdfs
+        if p.stat().st_size > LIMITE_PJ_ARCHIVO_MB * 1024 * 1024
+    ]
+    for archivo, mb in grandes:
+        lineas.append(
+            f"  AVISO: '{archivo.name}' pesa {mb:.1f} MB (supera {LIMITE_PJ_ARCHIVO_MB} MB)."
+        )
+    if grandes or total > LIMITE_PJ_TOTAL_MB:
+        lineas.append(
+            "  RECOMENDACION: reduzca el peso para poder subirlo. Vuelva a procesar con "
+            "'--ordenar --comprimir' (baja la resolucion de los PDF)."
+        )
+    else:
+        lineas.append("  OK: el peso esta dentro de los limites del Poder Judicial.")
+    return lineas
+
+
 def _cmd_preparar(args: argparse.Namespace) -> int:
     origen = Path(args.carpeta)
     if not origen.is_dir():
@@ -369,13 +415,22 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
                 origen=[entrada_real],
                 destino=documentos_dir,
                 estampar=True,
-                comprimir=False,
+                comprimir=args.comprimir,
+                dpi=args.dpi,
+                calidad=args.calidad,
                 prestadores=prestadores,
                 dry_run=False,
             )
         except Exception as error:  # no debe romper el proceso principal
             print(f"   (aviso) no se pudo ordenar automaticamente: {error}", file=sys.stderr)
             documentos_dir = None
+
+    recomendaciones = ["RECOMENDACIONES:"]
+    recomendaciones += [f"  - {linea}" for linea in RECOMENDACIONES]
+    recomendaciones += _chequear_peso(resultados)
+    print()
+    for linea in recomendaciones:
+        print(linea)
 
     registro = resultados / "Registro.txt"
     with registro.open("w", encoding="utf-8") as fh:
@@ -390,6 +445,9 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
         fh.write(f"  - {json_path}\n")
         if documentos_dir:
             fh.write(f"  - {documentos_dir}  (un PDF por documento, por categoria)\n")
+        fh.write("\n")
+        for linea in recomendaciones:
+            fh.write(linea + "\n")
 
     print()
     print(f"LISTO. Resultados en: {resultados}")
@@ -575,6 +633,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_exp.add_argument(
         "--abrir", action="store_true",
         help="Abre la carpeta de resultados, el revisor y el Word al terminar",
+    )
+    p_exp.add_argument(
+        "--comprimir", action="store_true",
+        help="Reduce el peso de los PDF (para no superar los limites del Poder Judicial)",
+    )
+    p_exp.add_argument(
+        "--dpi", type=int, default=DPI_COMPRESION,
+        help=f"DPI objetivo al comprimir los PDF (por defecto {DPI_COMPRESION})",
+    )
+    p_exp.add_argument(
+        "--calidad", type=int, default=CALIDAD_JPEG,
+        help=f"Calidad JPEG al comprimir, 0-100 (por defecto {CALIDAD_JPEG})",
     )
     p_exp.set_defaults(func=_cmd_expediente)
     return parser

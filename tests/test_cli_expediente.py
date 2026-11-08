@@ -22,3 +22,12 @@ def test_expediente_crea_estructura_y_avisa_si_no_hay_documentos(tmp_path: Path)
     assert (tmp_path / "Resultados").is_dir()
     guia = tmp_path / "1. Documentos a procesar" / "LEEME - aqui van los documentos.txt"
     assert guia.is_file()
+
+
+def test_expediente_parser_tiene_compresion():
+    parser = build_parser()
+    args = parser.parse_args(["expediente", "--comprimir"])
+    assert args.comprimir is True
+    assert args.dpi > 0
+    assert 0 <= args.calidad <= 100
+

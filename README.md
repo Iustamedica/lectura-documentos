@@ -627,3 +627,14 @@ Ver **[GUIA-USO-ABOGADOS.md](GUIA-USO-ABOGADOS.md)**. En resumen:
 4. Revisar `Expediente/Resultados/Revision.html` y el `Informe.docx`.
 
 Por linea de comandos: `documental expediente --carpeta Expediente --abrir`.
+
+## Advertencias de calidad y tamano (Poder Judicial)
+
+- **Orientacion:** todos los documentos deben estar en la **misma orientacion (derechos)**.
+  Escaneos torcidos o en distinta orientacion reducen la precision del OCR.
+- **Escrito a mano:** el texto **manuscrito** tiene **baja precision**; debe revisarse
+  **especialmente** en el revisor antes de usar el informe.
+- **Peso:** el Poder Judicial limita la carga a **10 MB por archivo** y **30 MB en total**.
+  La herramienta **avisa** si un PDF supera el limite y recomienda comprimir. Para generar
+  los PDF ya comprimidos, procese con `--ordenar --comprimir` o use el launcher
+  "Procesar y comprimir (Poder Judicial)".

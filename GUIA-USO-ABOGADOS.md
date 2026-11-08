@@ -51,3 +51,17 @@ esa única vez). Después puede usarse sin conexión.
 
 Revise **`Resultados → Registro.txt`**. Si el mensaje es sobre el entorno
 (`.venv`), pida que se ejecute de nuevo la instalación (paso de arriba).
+
+## Advertencias importantes
+
+- **Orientación:** los documentos deben estar **todos derechos y en la misma orientación**.
+  Si vienen torcidos o en distinta orientación, la lectura empeora.
+- **Escrito a mano:** el texto **manuscrito** tiene **baja precisión**. **Revise con especial
+  cuidado** esos documentos en `Revision.html` antes de confiar en el informe.
+- **Peso para el Poder Judicial:** el portal limita a **10 MB por archivo** y **30 MB en total**.
+  La herramienta **avisa** si un PDF supera el límite. Si necesita reducirlo, use el launcher
+  **“Procesar y comprimir (Poder Judicial)”**, que genera los PDF con menos peso (algo de
+  pérdida de nitidez, pero legibles).
+
+Siempre revise el revisor y el informe: la herramienta es un asistente, **no** reemplaza su criterio.
+
