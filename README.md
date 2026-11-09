@@ -11,7 +11,7 @@ Pensada para abogados: toma los documentos escaneados (bonos, boletas, recetas, 
 | Modo | Para qué | Cómo se usa |
 |---|---|---|
 | **Salud** (por defecto) | Bonos, fichas, recetas, boletas y certificados de un expediente de salud. | Los accesos directos (`Procesar documentos`). |
-| **Legal** | Escritos, resoluciones, notificaciones, contratos y prueba de un expediente judicial. | `documental expediente --perfil legal` |
+| **Legal** | Escritos, resoluciones, notificaciones, contratos y prueba de un expediente judicial (civil, laboral, penal y familia). | `documental expediente --perfil legal` |
 
 El modo salud sigue funcionando **igual y local**: si no se indica perfil, la
 herramienta usa salud. El catálogo y los campos del modo legal están en

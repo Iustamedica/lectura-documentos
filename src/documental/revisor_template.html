@@ -110,12 +110,13 @@ function render() {
       ' <span class="stat">' + escapar(doc.source_file) + ' p.' + doc.page + '</span></h2>' +
       '<div class="meta">Familia: ' + escapar(doc.familia) + ' | id: ' + escapar(doc.doc_id) + '</div>';
     const tabla = document.createElement('table');
+    const criticos = Array.isArray(doc.criticos) && doc.criticos.length ? doc.criticos : CRITICOS;
     for (const nombre of CAMPOS) {
       const campo = doc[nombre] || { value: '', confidence: 'faltante' };
       const vacio = campo.value === null || campo.value === '' || campo.value === undefined;
-      if (vacio && !CRITICOS.includes(nombre)) continue;
+      if (vacio && !criticos.includes(nombre)) continue;
       const tr = document.createElement('tr');
-      if (CRITICOS.includes(nombre)) tr.className = 'critico';
+      if (criticos.includes(nombre)) tr.className = 'critico';
       if (campo.edited) tr.classList.add('editado');
       const observacion = (campo.raw || '') + (campo.note ? ' - ' + campo.note : '');
       tr.innerHTML =
@@ -125,7 +126,7 @@ function render() {
         '<td>' + badge(campo.confidence || 'faltante') + '</td>' +
         '<td class="raw">' + escapar(observacion) + '</td>';
       tabla.appendChild(tr);
-      if (CRITICOS.includes(nombre) &&
+      if (criticos.includes(nombre) &&
           (campo.confidence === 'baja' || campo.confidence === 'faltante')) pendientes++;
     }
     card.appendChild(tabla);

@@ -49,7 +49,9 @@ def generar_revisor(
     payload = expediente.to_dict()
     # Semaforo por documento en la cabecera de cada tarjeta.
     for doc_dict, doc in zip(payload["documentos"], expediente.documentos):
-        doc_dict["confianza"] = doc.confianza_global(criticos)
+        criticos_doc = perfil.criticos_de(doc)
+        doc_dict["criticos"] = list(criticos_doc)
+        doc_dict["confianza"] = doc.confianza_global(criticos_doc)
         # Los campos del perfil se exponen planos para que el revisor los
         # muestre y los exporte igual que los campos comunes.
         for nombre, campo in (doc_dict.get("extra") or {}).items():

@@ -1,7 +1,7 @@
 """Perfil legal: expedientes judiciales (civil y laboral)."""
 
 from .catalogo import CAMPOS, CATEGORIAS, CAT_OTROS, T_SIN_CLASIFICAR
-from .catalogo import categoria_de_tipo, detalle_de, refinar, tipo_canonico
+from .catalogo import categoria_de_tipo, criticos_para_tipo, detalle_de, refinar, tipo_canonico
 from .clasificacion import clasificar
 from .extractores import extract_legal
 
@@ -62,6 +62,10 @@ class PerfilLegal(Perfil):
 
     def refinar(self, documento, prestadores: tuple | None = None) -> None:
         refinar(documento, prestadores=prestadores)
+
+    def criticos_de(self, documento) -> tuple[str, ...]:
+        """Campos criticos propios del tipo (un contrato no exige ROL)."""
+        return criticos_para_tipo(self.tipo_canonico(documento))
 
     def identificadores(self, documento) -> dict[str, str]:
         valores = super().identificadores(documento)

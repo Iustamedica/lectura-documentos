@@ -80,6 +80,14 @@ class Perfil:
     def campos_criticos(self) -> tuple[str, ...]:
         return tuple(item.nombre for item in self.campos if item.critico)
 
+    def criticos_de(self, documento: Document) -> tuple[str, ...]:
+        """Campos criticos que aplican a este documento en particular.
+
+        Un contrato no tiene ROL y una sentencia no tiene notaria: el semaforo
+        debe exigir solo los campos propios del tipo documental.
+        """
+        return self.campos_criticos()
+
     def etiquetas_campo(self) -> dict[str, str]:
         return {item.nombre: item.etiqueta for item in self.campos}
 

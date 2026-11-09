@@ -222,3 +222,87 @@ def test_from_dict_recupera_campos_planos_exportados_por_el_revisor():
     recuperado = Document.from_dict(datos)
     assert recuperado.extra["rol"].value == "C-7777-2025"
     assert recuperado.extra["rol"].edited is True
+
+
+# ---------------------------------------------------------------------------
+# v0.3: penal y familia
+# ---------------------------------------------------------------------------
+
+def test_tipos_penales():
+    perfil = get_perfil("legal")
+    casos = {
+        "QUERELLA\nDelito de robo con fuerza": catalogo.T_QUERELLA,
+        "DENUNCIA\nSe denuncia el delito de hurto": catalogo.T_DENUNCIA,
+        "FORMALIZACION DE LA INVESTIGACION\nAudiencia": catalogo.T_FORMALIZACION,
+        "ACUSACION FISCAL\nEl Ministerio Publico acusa": catalogo.T_ACUSACION,
+        "SOBRESEIMIENTO DEFINITIVO\nSe decreta": catalogo.T_SOBRESEIMIENTO,
+        "SENTENCIA CONDENATORIA\nSe condena al imputado": catalogo.T_SENTENCIA_CONDENATORIA,
+        "SENTENCIA ABSOLUTORIA\nSe absuelve al imputado": catalogo.T_SENTENCIA_ABSOLUTORIA,
+        "RESOLUCION\nSe decreta prision preventiva": catalogo.T_MEDIDA_CAUTELAR,
+    }
+    for texto, esperado in casos.items():
+        assert perfil.tipo_canonico(_doc(texto, familia="otro")) == esperado, texto
+
+
+def test_tipos_familia():
+    perfil = get_perfil("legal")
+    casos = {
+        "DEMANDA DE DIVORCIO\nSe solicita el divorcio": catalogo.T_DIVORCIO,
+        "DEMANDA DE ALIMENTOS\nPension de alimentos": catalogo.T_ALIMENTOS,
+        "DEMANDA DE CUIDADO PERSONAL\nSe solicita": catalogo.T_CUIDADO_PERSONAL,
+        "DEMANDA DE RELACION DIRECTA Y REGULAR\nRegimen comunicacional": catalogo.T_RELACION_DIRECTA,
+        "RESOLUCION\nSe decreta medida de proteccion": catalogo.T_MEDIDA_PROTECCION,
+    }
+    for texto, esperado in casos.items():
+        assert perfil.tipo_canonico(_doc(texto, familia="otro")) == esperado, texto
+
+
+def test_categorias_de_tipos_penales_y_familia():
+    assert catalogo.categoria_de_tipo(catalogo.T_QUERELLA) == catalogo.CAT_ESCRITOS
+    assert catalogo.categoria_de_tipo(catalogo.T_FORMALIZACION) == catalogo.CAT_RESOLUCIONES
+    assert catalogo.categoria_de_tipo(catalogo.T_DIVORCIO) == catalogo.CAT_ESCRITOS
+    assert catalogo.categoria_de_tipo(catalogo.T_MEDIDA_PROTECCION) == catalogo.CAT_RESOLUCIONES
+
+
+def test_materia_penal_y_familia():
+    perfil = get_perfil("legal")
+    penal = _doc("QUERELLA\nDelito de robo con fuerza", familia="escrito")
+    perfil.refinar(penal)
+    assert penal.extra["materia"].value == "Penal"
+
+    familia = _doc("DEMANDA DE DIVORCIO\nSe solicita el divorcio", familia="escrito")
+    perfil.refinar(familia)
+    assert familia.extra["materia"].value == "Familia"
+
+
+# ---------------------------------------------------------------------------
+# v0.3: campos criticos por tipo de documento
+# ---------------------------------------------------------------------------
+
+def test_criticos_segun_el_tipo_documental():
+    perfil = get_perfil("legal")
+
+    contrato = _doc("CONTRATO DE ARRIENDO\nComparecen las partes", familia="contrato")
+    criticos_contrato = perfil.criticos_de(contrato)
+    assert "rol" not in criticos_contrato
+    assert "fecha_emision" in criticos_contrato
+
+    sentencia = _doc("SENTENCIA DEFINITIVA\nVistos y resuelvo", familia="resolucion")
+    criticos_sentencia = perfil.criticos_de(sentencia)
+    assert "rol" in criticos_sentencia
+    assert "fecha_emision" in criticos_sentencia
+
+    boleta = _doc("BOLETA ELECTRONICA\nTotal $ 10.000", familia="comprobante")
+    assert "monto_total" in perfil.criticos_de(boleta)
+
+
+def test_revisor_expone_criticos_por_documento(tmp_path):
+    perfil = get_perfil("legal")
+    doc = _doc("SENTENCIA DEFINITIVA\nROL C-1-2025", familia="resolucion")
+    perfil.refinar(doc)
+    expediente = Expediente(carpeta="caso", generado="2025-01-01", documentos=[doc])
+
+    html = generar_revisor(expediente, tmp_path / "revision.html", perfil=perfil)
+    texto = html.read_text(encoding="utf-8")
+    assert '"criticos"' in texto
+    assert '"fecha_emision"' in texto

@@ -95,6 +95,23 @@ T_CHEQUE = "Cheque"
 T_SIN_CLASIFICAR = "Documento sin clasificar"
 
 
+# Penal (v0.3)
+T_QUERELLA = "Querella"
+T_DENUNCIA = "Denuncia"
+T_FORMALIZACION = "Formalizacion de la investigacion"
+T_ACUSACION = "Acusacion fiscal"
+T_SOBRESEIMIENTO = "Sobreseimiento"
+T_SENTENCIA_CONDENATORIA = "Sentencia condenatoria"
+T_SENTENCIA_ABSOLUTORIA = "Sentencia absolutoria"
+T_MEDIDA_CAUTELAR = "Medida cautelar"
+
+# Familia (v0.3)
+T_DIVORCIO = "Demanda de divorcio"
+T_ALIMENTOS = "Demanda de alimentos"
+T_CUIDADO_PERSONAL = "Demanda de cuidado personal"
+T_RELACION_DIRECTA = "Demanda de relacion directa y regular"
+T_MEDIDA_PROTECCION = "Medida de proteccion (VIF)"
+
 TIPOS: dict[str, str] = {
     T_DEMANDA: CAT_ESCRITOS,
     T_CONTESTACION: CAT_ESCRITOS,
@@ -143,6 +160,19 @@ TIPOS: dict[str, str] = {
     T_PAGARE: CAT_OTROS,
     T_CHEQUE: CAT_OTROS,
     T_SIN_CLASIFICAR: CAT_OTROS,
+    T_QUERELLA: CAT_ESCRITOS,
+    T_DENUNCIA: CAT_ESCRITOS,
+    T_ACUSACION: CAT_ESCRITOS,
+    T_FORMALIZACION: CAT_RESOLUCIONES,
+    T_SOBRESEIMIENTO: CAT_RESOLUCIONES,
+    T_SENTENCIA_CONDENATORIA: CAT_RESOLUCIONES,
+    T_SENTENCIA_ABSOLUTORIA: CAT_RESOLUCIONES,
+    T_MEDIDA_CAUTELAR: CAT_RESOLUCIONES,
+    T_DIVORCIO: CAT_ESCRITOS,
+    T_ALIMENTOS: CAT_ESCRITOS,
+    T_CUIDADO_PERSONAL: CAT_ESCRITOS,
+    T_RELACION_DIRECTA: CAT_ESCRITOS,
+    T_MEDIDA_PROTECCION: CAT_RESOLUCIONES,
 }
 
 CAMPOS: tuple[CampoDef, ...] = (
@@ -175,6 +205,25 @@ def categoria_de_tipo(tipo: str) -> str:
     return TIPOS.get(tipo, CAT_OTROS)
 
 
+# Campos criticos segun la categoria del documento. Un contrato no tiene ROL y
+# una notificacion no exige monto: el semaforo debe pedir solo lo que aplica.
+CRITICOS_POR_CATEGORIA: dict[str, tuple[str, ...]] = {
+    CAT_ESCRITOS: ("rol", "tribunal", "caratula"),
+    CAT_RESOLUCIONES: ("rol", "tribunal", "fecha_emision"),
+    CAT_NOTIFICACIONES: ("rol", "fecha_notificacion", "forma_notificacion"),
+    CAT_CONTRATOS: ("fecha_emision",),
+    CAT_COMPROBANTES: ("fecha_emision", "monto_total", "emisor_rut"),
+    CAT_PODERES: ("fecha_emision", "notaria"),
+    CAT_INFORMES: ("fecha_emision",),
+    CAT_OTROS: ("fecha_emision",),
+}
+
+
+def criticos_para_tipo(tipo: str) -> tuple[str, ...]:
+    """Campos criticos que exige un tipo canonico."""
+    return CRITICOS_POR_CATEGORIA.get(categoria_de_tipo(tipo), CRITICOS_POR_CATEGORIA[CAT_OTROS])
+
+
 # Certificado generico (los especificos se reconocen por su nombre).
 T_CERTIFICADO = "Certificado"
 TIPOS.setdefault(T_CERTIFICADO, CAT_PODERES)
@@ -201,6 +250,34 @@ def tipo_canonico(documento: Document) -> str:
         return T_CEDULA
     if "notificacion electronica" in texto:
         return T_NOTIF_ELECTRONICA
+
+    # 1.5. Penal y familia (nombres propios; antes de las reglas genericas).
+    if "querella" in cabecera:
+        return T_QUERELLA
+    if "denuncia" in cabecera:
+        return T_DENUNCIA
+    if "formalizacion de la investigacion" in texto:
+        return T_FORMALIZACION
+    if "acusacion fiscal" in texto or ("acusacion" in cabecera and "fiscal" in texto):
+        return T_ACUSACION
+    if "sobreseimiento" in texto:
+        return T_SOBRESEIMIENTO
+    if "sentencia condenatoria" in texto or ("condeno" in texto and "delito" in texto):
+        return T_SENTENCIA_CONDENATORIA
+    if "sentencia absolutoria" in texto or "absuelvo" in texto:
+        return T_SENTENCIA_ABSOLUTORIA
+    if "medida cautelar" in texto or "prision preventiva" in texto:
+        return T_MEDIDA_CAUTELAR
+    if "demanda de divorcio" in cabecera or "divorcio" in cabecera:
+        return T_DIVORCIO
+    if "demanda de alimentos" in cabecera or "pension de alimentos" in texto:
+        return T_ALIMENTOS
+    if "cuidado personal" in cabecera:
+        return T_CUIDADO_PERSONAL
+    if "relacion directa y regular" in texto or "regimen comunicacional" in texto:
+        return T_RELACION_DIRECTA
+    if "medida de proteccion" in texto or "violencia intrafamiliar" in texto:
+        return T_MEDIDA_PROTECCION
 
     # 2. Resoluciones con nombre propio.
     if "sentencia definitiva" in texto:
@@ -366,6 +443,14 @@ _MATERIAS = (
     ("cobranza", "Ejecutivo"),
     ("juicio ordinario", "Civil"),
     ("juicio sumario", "Civil"),
+    ("violencia intrafamiliar", "Familia"),
+    ("divorcio", "Familia"),
+    ("pension de alimentos", "Familia"),
+    ("cuidado personal", "Familia"),
+    ("querella", "Penal"),
+    ("formalizacion", "Penal"),
+    ("sobreseimiento", "Penal"),
+    ("delito", "Penal"),
     ("familia", "Familia"),
     ("penal", "Penal"),
 )

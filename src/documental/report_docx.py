@@ -332,7 +332,7 @@ def _build_index_table(
                 item.emisor_nombre.value or "-",
                 format_clp(_doc_total(item)) or "-",
                 CONFIDENCE_LABELS.get(
-                    item.confianza_global(perfil.campos_criticos()), "-"
+                    item.confianza_global(perfil.criticos_de(item)), "-"
                 ),
             )
         else:
@@ -345,14 +345,14 @@ def _build_index_table(
                 _fecha_item(item),
                 _valor(item, "parte_demandante") or "-",
                 CONFIDENCE_LABELS.get(
-                    item.confianza_global(perfil.campos_criticos()), "-"
+                    item.confianza_global(perfil.criticos_de(item)), "-"
                 ),
             )
         for cell, value in zip(cells, values):
             cell.text = str(value)
             for run in cell.paragraphs[0].runs:
                 run.font.size = Pt(8)
-        estado = item.confianza_global(perfil.campos_criticos())
+        estado = item.confianza_global(perfil.criticos_de(item))
         if estado in (CONF_BAJA, CONF_FALTA):
             _set_cell_background(cells[-1], "FDE7E7")
 
@@ -390,7 +390,7 @@ def _build_document_card(
 
     estado = doc.add_paragraph()
     estado.add_run("Estado de lectura: ").bold = True
-    estado.add_run(CONFIDENCE_LABELS.get(item.confianza_global(perfil.campos_criticos()), "-"))
+    estado.add_run(CONFIDENCE_LABELS.get(item.confianza_global(perfil.criticos_de(item)), "-"))
     if item.familia_confianza == CONF_BAJA:
         estado.add_run("  (familia documental inferida, revisar)").italic = True
 
@@ -469,7 +469,7 @@ def _build_verification_annex(
 
     pendientes: list[tuple[Document, str, str, str]] = []
     for item in expediente.documentos:
-        for name in item.campos_a_revisar(perfil.campos_criticos()):
+        for name in item.campos_a_revisar(perfil.criticos_de(item)):
             field = item.field(name)
             pendientes.append(
                 (item, etiquetas.get(name, name), _format_value(name, field.value), field.note)

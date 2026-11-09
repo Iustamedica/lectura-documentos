@@ -16,9 +16,10 @@ Sin `--perfil`, la herramienta usa **salud** (comportamiento de siempre).
 
 ## Alcance v1
 
-Expediente judicial chileno (civil y laboral): escritos, resoluciones,
-notificaciones, contratos, comprobantes, poderes, certificados, informes y
-peritajes. Fuera de v1: penal, familia y tributario (caen en `08-otros`).
+Expediente judicial chileno (civil, laboral, penal y familia): escritos,
+resoluciones, notificaciones, contratos, comprobantes, poderes, certificados,
+informes y peritajes. Fuera de alcance: tributario y contencioso administrativo
+(caen en `08-otros`).
 
 ## Categorías (carpetas de salida)
 
@@ -56,6 +57,14 @@ identidad o pasaporte, Certificado (genérico).
 
 **Informes:** Informe pericial, Tasación, Informe técnico o social.
 
+**Penal (v0.3):** Querella, Denuncia, Formalización de la investigación,
+Acusación fiscal, Sobreseimiento, Sentencia condenatoria, Sentencia absolutoria,
+Medida cautelar.
+
+**Familia (v0.3):** Demanda de divorcio, Demanda de alimentos, Demanda de
+cuidado personal, Demanda de relación directa y regular, Medida de protección
+(VIF).
+
 **Otros:** Oficio, Carta o correo, Acta de mediación, Pagaré, Cheque, Documento
 sin clasificar.
 
@@ -89,6 +98,22 @@ Propios del perfil legal (en `Document.extra`):
 | `moneda` | `CLP` / `UF` / `USD` | No |
 | `sociedad` | razón social | No |
 | `giro` | giro comercial | No |
+
+## Campos críticos por tipo
+
+El semáforo no exige los mismos campos a todos los documentos: un contrato no
+tiene ROL y una notificación no tiene monto.
+
+| Categoría | Campos críticos |
+|---|---|
+| Escritos | `rol`, `tribunal`, `caratula` |
+| Resoluciones | `rol`, `tribunal`, `fecha_emision` |
+| Notificaciones | `rol`, `fecha_notificacion`, `forma_notificacion` |
+| Contratos | `fecha_emision` |
+| Comprobantes | `fecha_emision`, `monto_total`, `emisor_rut` |
+| Poderes y certificados | `fecha_emision`, `notaria` |
+| Informes y peritajes | `fecha_emision` |
+| Otros | `fecha_emision` |
 
 ## Individualización
 

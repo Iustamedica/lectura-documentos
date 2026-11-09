@@ -334,7 +334,7 @@ class Grupo:
     @property
     def confianza(self) -> str:
         """Peor confianza entre las paginas del grupo."""
-        criticos = self._perfil.campos_criticos()
+        criticos = self._perfil.criticos_de(self.primero)
         peor = self.primero.confianza_global(criticos)
         for documento in self.documentos[1:]:
             otra = documento.confianza_global(criticos)
