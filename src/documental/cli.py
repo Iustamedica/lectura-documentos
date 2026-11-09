@@ -45,6 +45,11 @@ from .pipeline import PipelineOptions, process_folder, save_expediente
 from .revisor import cargar_expediente, generar_revisor
 from .report_docx import generar_informe
 from .titulares import load_titulares
+from .sinocr import (
+    clasificar_sin_ocr,
+    escribir_csv as escribir_csv_clasif,
+    resumen as resumen_clasif,
+)
 
 
 # --- Avisos de calidad y tamano (pensando en el Poder Judicial) ---
@@ -465,6 +470,29 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_clasificar(args: argparse.Namespace) -> int:
+    """Clasifica rapido SIN OCR usando la capa de texto de los PDF."""
+    carpeta = Path(args.carpeta)
+    if not carpeta.exists():
+        print(f"Error: no existe: {carpeta}", file=sys.stderr)
+        return 2
+    items = clasificar_sin_ocr(carpeta, recursivo=args.recursivo)
+    res = resumen_clasif(items)
+    print(
+        f"Archivos: {res['total']} | con texto: {res['con_texto']} | "
+        f"requieren OCR: {res['requiere_ocr']}"
+    )
+    print("Por categoria (solo con texto):")
+    for categoria, total in res["por_categoria"].items():
+        print(f"  {total:5d}  {categoria}")
+    print("Tipos mas frecuentes:")
+    for tipo, total in list(res["por_tipo"].items())[:15]:
+        print(f"  {total:5d}  {tipo}")
+    if args.csv:
+        print(f"CSV: {escribir_csv_clasif(items, Path(args.csv))}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="documental",
@@ -655,6 +683,24 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Calidad JPEG al comprimir, 0-100 (por defecto {CALIDAD_JPEG})",
     )
     p_exp.set_defaults(func=_cmd_expediente)
+
+    p_cla = sub.add_parser(
+        "clasificar",
+        help="Clasifica rapido SIN OCR usando la capa de texto de los PDF",
+        description=(
+            "Recorre una carpeta, lee el texto embebido de los PDF (sin OCR) y "
+            "clasifica cada documento (familia, tipo, categoria). Los escaneos e "
+            "imagenes se marcan como 'requiere OCR'. Muy rapido para grandes "
+            "carpetas."
+        ),
+    )
+    p_cla.add_argument("carpeta", help="Carpeta (o archivo) a clasificar")
+    p_cla.add_argument("--csv", default="clasificacion.csv", help="CSV de salida")
+    p_cla.add_argument("--recursivo", action="store_true", default=True,
+                       help="Recorre subcarpetas (por defecto si)")
+    p_cla.add_argument("--no-recursivo", dest="recursivo", action="store_false",
+                       help="Solo la carpeta indicada, sin subcarpetas")
+    p_cla.set_defaults(func=_cmd_clasificar)
     return parser
 
 
