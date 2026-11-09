@@ -42,8 +42,13 @@ def clasificar_sin_ocr(
     carpeta: Path | str,
     recursivo: bool = True,
     max_paginas: int = 5,
+    perfil=None,
 ) -> list[ItemClasificado]:
     """Clasifica cada archivo usando solo su texto embebido (sin OCR)."""
+    if perfil is None:
+        from .perfiles import get_perfil
+
+        perfil = get_perfil()
     carpeta = Path(carpeta)
     if carpeta.is_file():
         archivos = [carpeta]
@@ -65,14 +70,14 @@ def clasificar_sin_ocr(
                                              "(ilegible)", "otros"))
                 continue
             if len(texto.strip()) >= _MIN_CARACTERES:
-                familia = classify(texto).familia
+                familia = perfil.clasificar(texto).familia
                 doc = Document(
                     doc_id=p.name, source_file=p.name, page=1, index_in_page=1,
                     familia=familia, texto_ocr=texto,
                 )
-                tipo = tipo_canonico(doc)
+                tipo = perfil.tipo_canonico(doc)
                 items.append(ItemClasificado(rel, paginas, True, familia, tipo,
-                                             categoria_de_tipo(tipo)))
+                                             perfil.categoria_de_tipo(tipo)))
             else:
                 items.append(ItemClasificado(rel, paginas, False, DESCONOCIDO,
                                              "(escaneo: requiere OCR)", "otros"))

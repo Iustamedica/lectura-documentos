@@ -26,6 +26,7 @@ from .layout import Block, build_lines, split_blocks
 from .models import CONF_BAJA, CONF_FALTA, CONF_MEDIA, Document
 from .normalizers import fold, parse_clp
 from .ocr import TARGET_HEIGHT, OCREngine, PageOCR, ocr_pages
+from .perfiles import Perfil, get_perfil
 from .titulares import TitularConfig, resolve_expediente
 
 # Marcadores que indican el inicio de un documento dentro de una hoja.
@@ -83,22 +84,16 @@ def _is_noise(block: Block) -> bool:
     return not meaningful
 
 
-def _block_family(block: Block) -> tuple[str, str, str]:
-    """Familia, confianza y texto del bloque."""
+def _block_family(block: Block, perfil: Perfil | None = None) -> tuple[str, str, str]:
+    """Familia, confianza y texto del bloque, segun el perfil activo.
+
+    El perfil decide como se clasifica y aplica sus propias correcciones (por
+    ejemplo, en salud un voucher de tarjeta no es un documento autonomo).
+    """
+    perfil = perfil or get_perfil()
     text = block.text
-    result = classify(text)
-    familia = result.familia
-    folded = fold(text)
-    # Una receta de farmacia no es una receta optica.
-    if familia == FARMACIA and "receta" in folded and "farmacia" not in folded:
-        familia = "receta_optica"
-    # Voucher de tarjeta (Transbank/KLAP) que acompana a una boleta: no es un
-    # documento autonomo y su "titular" seria el nombre del comercio.
-    if _is_payment_voucher(folded):
-        familia = "comprobante_pago"
-    # Receta manuscrita del oftalmologo: texto corto, "Rp." y datos del medico.
-    if familia == "documento_clinico" and _looks_like_manuscrita(folded):
-        familia = "receta_manuscrita"
+    result = perfil.clasificar(text)
+    familia = perfil.ajustar_familia(result.familia, fold(text))
     return familia, result.confianza, text
 
 
@@ -135,13 +130,16 @@ def process_pdf(
     engine: OCREngine | None = None,
     options: PipelineOptions | None = None,
     nombres_conocidos: list[str] | None = None,
+    perfil: Perfil | None = None,
 ) -> list[Document]:
     """Procesa un archivo y devuelve los documentos detectados."""
     options = options or PipelineOptions()
     pages = ocr_pages(path, engine, dpi=options.dpi, target_height=options.target_height)
     documents: list[Document] = []
     for page in pages:
-        documents.extend(process_page(path, page, options, nombres_conocidos, documents))
+        documents.extend(
+            process_page(path, page, options, nombres_conocidos, documents, perfil=perfil)
+        )
     return documents
 
 
@@ -151,25 +149,27 @@ def process_page(
     options: PipelineOptions,
     nombres_conocidos: list[str] | None,
     documentos_previos: list[Document] | None = None,
+    perfil: Perfil | None = None,
 ) -> list[Document]:
     """Procesa una pagina ya renderizada y con OCR hecho.
 
     Se separa de `process_pdf` para poder reutilizar el resultado del OCR en la
     segunda pasada (recetas manuscritas) sin volver a leer el PDF completo.
     """
+    perfil = perfil or get_perfil()
     tokens = [t for t in page.tokens if t.score >= options.min_confidence]
     lines = build_lines(tokens)
     if not lines:
         return []
 
     blocks = split_blocks(
-        lines, page_height=page.height, gap_ratio=0.05, markers=DOC_MARKERS
+        lines, page_height=page.height, gap_ratio=0.05, markers=perfil.marcadores
     )
     blocks = [block for block in blocks if not _is_noise(block)]
 
     documents: list[Document] = []
     for index, block in enumerate(blocks, start=1):
-        familia, confianza, text = _block_family(block)
+        familia, confianza, text = _block_family(block, perfil)
         doc_id = f"{path.stem[:28]}-p{page.page}-{index}"
 
         if familia == "comprobante_pago":
@@ -195,7 +195,7 @@ def process_page(
                 # En formularios clinicos el paciente tambien puede ser manuscrito.
                 extract_clinico(block, doc, nombres_conocidos)
             else:
-                get_extractor(familia)(block, doc)
+                perfil.extractor(familia)(block, doc)
         except Exception as error:  # un extractor nunca debe abortar el lote
             doc.observaciones.set(
                 f"Error del extractor {familia}: {error}", CONF_BAJA, ""
@@ -275,6 +275,7 @@ def process_folder(
     options: PipelineOptions | None = None,
     titulares_config: list[TitularConfig] | None = None,
     recursivo: bool = False,
+    perfil: Perfil | None = None,
 ):
     """Procesa todos los PDF/imagenes de una carpeta y arma el expediente.
 
@@ -289,6 +290,7 @@ def process_folder(
     folder = Path(folder)
     engine = engine or OCREngine()
     options = options or PipelineOptions()
+    perfil = perfil or get_perfil()
     config = titulares_config or []
     candidatos = folder.rglob("*") if recursivo else folder.iterdir()
     files = sorted(
@@ -305,7 +307,9 @@ def process_folder(
         paginas[path] = ocr_pages(path, engine, dpi=options.dpi, target_height=options.target_height)
         acumulados: list[Document] = []
         for page in paginas[path]:
-            acumulados.extend(process_page(path, page, options, None, acumulados))
+            acumulados.extend(
+                process_page(path, page, options, None, acumulados, perfil=perfil)
+            )
         documentos_por_archivo[path] = acumulados
 
     todos = [doc for lista in documentos_por_archivo.values() for doc in lista]
@@ -352,7 +356,7 @@ def process_folder(
                     doc for doc in documentos_por_archivo[path] if doc.page == page.page
                 )
                 continue
-            nuevos.extend(process_page(path, page, options, nombres, nuevos))
+            nuevos.extend(process_page(path, page, options, nombres, nuevos, perfil=perfil))
         documentos_por_archivo[path] = nuevos
 
     documents = [doc for path in files for doc in documentos_por_archivo[path]]

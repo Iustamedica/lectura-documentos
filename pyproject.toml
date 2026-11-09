@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "documental"
-version = "0.1.0"
-description = "Extraccion local de datos desde documentos escaneados y generacion de informe Word."
+version = "0.2.0"
+description = "Extraccion local de datos desde documentos escaneados (perfiles salud y legal) y generacion de informe Word."
 authors = [{ name = "Iustamedica (desarrollo en colaboracion con DeepSeek)" }]
 requires-python = ">=3.10"
 dependencies = [

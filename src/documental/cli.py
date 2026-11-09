@@ -42,6 +42,7 @@ from .organizar import (
     ordenar,
 )
 from .pipeline import PipelineOptions, process_folder, save_expediente
+from .perfiles import get_perfil
 from .revisor import cargar_expediente, generar_revisor
 from .report_docx import generar_informe
 from .titulares import load_titulares
@@ -136,6 +137,7 @@ def _cmd_preparar(args: argparse.Namespace) -> int:
 
 
 def _cmd_ordenar(args: argparse.Namespace) -> int:
+    perfil = get_perfil(getattr(args, "perfil", None))
     expediente = cargar_expediente(Path(args.json))
     if not expediente.documentos:
         print("Error: el expediente no tiene documentos.", file=sys.stderr)
@@ -148,7 +150,7 @@ def _cmd_ordenar(args: argparse.Namespace) -> int:
         return 2
 
     prestadores = cargar_prestadores(Path(args.prestadores) if args.prestadores else None)
-    grupos = agrupar_refinado(expediente.documentos, prestadores)
+    grupos = agrupar_refinado(expediente.documentos, prestadores, perfil)
     if not grupos:
         print("Error: no se pudo agrupar ningun documento.", file=sys.stderr)
         return 2
@@ -164,14 +166,15 @@ def _cmd_ordenar(args: argparse.Namespace) -> int:
         calidad=args.calidad,
         prestadores=prestadores,
         dry_run=args.dry_run,
+        perfil=perfil,
     )
 
     modo = " (simulacion: no se escribio nada)" if args.dry_run else ""
     print(f"Documentos: {resultado.documentos} | paginas: {resultado.paginas}{modo}")
-    for clave, etiqueta, carpeta in CATEGORIAS:
-        total = resultado.por_categoria.get(clave, 0)
+    for categoria in perfil.categorias:
+        total = resultado.por_categoria.get(categoria.clave, 0)
         if total:
-            print(f"  {carpeta:16s} {total:4d}  {etiqueta}")
+            print(f"  {categoria.carpeta:16s} {total:4d}  {categoria.etiqueta}")
     if resultado.por_prestador:
         print("Fichas por prestador:")
         for prestador, total in sorted(
@@ -200,17 +203,21 @@ def _cmd_ordenar(args: argparse.Namespace) -> int:
     if args.dry_run:
         return 0
 
-    print(f"Indice CSV: {escribir_indice_csv(grupos, destino / 'indice.csv')}")
-    print(f"Indice Word: {escribir_indice_docx(grupos, destino / 'indice.docx')}")
-    print(f"Manifiesto: {escribir_leeme(resultado, destino / 'LEEME.txt', origen=args.origen)}")
+    print(f"Indice CSV: {escribir_indice_csv(grupos, destino / 'indice.csv', perfil)}")
+    print(f"Indice Word: {escribir_indice_docx(grupos, destino / 'indice.docx', perfil=perfil)}")
+    print(
+        f"Manifiesto: "
+        f"{escribir_leeme(resultado, destino / 'LEEME.txt', origen=args.origen, perfil=perfil)}"
+    )
     save_expediente(expediente, destino / "expediente-refinado.json")
     print(f"Carpeta ordenada: {destino} ({resultado.bytes / (1024 * 1024):.1f} MB)")
     return 0
 
 
 def _cmd_compilar(args: argparse.Namespace) -> int:
+    perfil = get_perfil(getattr(args, "perfil", None))
     expediente = cargar_expediente(Path(args.json))
-    grupos = agrupar(expediente.documentos)
+    grupos = agrupar(expediente.documentos, perfil)
     if not grupos:
         print("Error: el expediente no tiene documentos.", file=sys.stderr)
         return 2
@@ -256,9 +263,9 @@ def _cmd_compilar(args: argparse.Namespace) -> int:
         for llave in resultado.paginas_compartidas[:10]:
             print(f"  - {llave}", file=sys.stderr)
     if args.csv:
-        print(f"Individualizacion CSV: {escribir_csv(grupos, Path(args.csv))}")
+        print(f"Individualizacion CSV: {escribir_csv(grupos, Path(args.csv), perfil)}")
     if args.docx:
-        print(f"Individualizacion Word: {escribir_docx(grupos, Path(args.docx))}")
+        print(f"Individualizacion Word: {escribir_docx(grupos, Path(args.docx), perfil=perfil)}")
     if not resultado.dry_run:
         megas = resultado.bytes / (1024 * 1024)
         extra = f" | comprimido a {args.dpi} dpi (q{args.calidad})" if resultado.comprimido else ""
@@ -267,6 +274,7 @@ def _cmd_compilar(args: argparse.Namespace) -> int:
 
 
 def _cmd_procesar(args: argparse.Namespace) -> int:
+    perfil = get_perfil(getattr(args, "perfil", None))
     carpeta = Path(args.carpeta)
     if not carpeta.exists():
         print(f"Error: la carpeta no existe: {carpeta}", file=sys.stderr)
@@ -280,7 +288,8 @@ def _cmd_procesar(args: argparse.Namespace) -> int:
     )
     print(f"Procesando {carpeta} (OCR local, puede tardar unos segundos por pagina)...")
     expediente = process_folder(
-        carpeta, options=options, titulares_config=config, recursivo=args.recursivo
+        carpeta, options=options, titulares_config=config, recursivo=args.recursivo,
+        perfil=perfil,
     )
     destino = save_expediente(expediente, Path(args.json))
     print(f"Documentos: {len(expediente.documentos)} | titulares: {len(expediente.titulares)}")
@@ -294,20 +303,25 @@ def _cmd_procesar(args: argparse.Namespace) -> int:
             expediente,
             Path(args.html),
             image_rel_prefix=args.image_prefix,
+            perfil=perfil,
         )
         print(f"Revisor: {html}")
     return 0
 
 
 def _cmd_revisor(args: argparse.Namespace) -> int:
+    perfil = get_perfil(getattr(args, "perfil", None))
     expediente = cargar_expediente(Path(args.json))
-    html = generar_revisor(expediente, Path(args.html), image_rel_prefix=args.image_prefix)
+    html = generar_revisor(
+        expediente, Path(args.html), image_rel_prefix=args.image_prefix, perfil=perfil
+    )
     print(f"Revisor generado: {html}")
     print("Abralo con doble clic, corrija los datos y use 'Exportar JSON corregido'.")
     return 0
 
 
 def _cmd_informe(args: argparse.Namespace) -> int:
+    perfil = get_perfil(getattr(args, "perfil", None))
     expediente = cargar_expediente(Path(args.json))
     render = Path(args.render) if args.render else None
     destino = generar_informe(
@@ -315,6 +329,7 @@ def _cmd_informe(args: argparse.Namespace) -> int:
         Path(args.docx),
         image_root=render,
         incluir_imagenes=args.con_imagenes,
+        perfil=perfil,
     )
     print(f"Informe Word: {destino}")
     return 0
@@ -352,6 +367,7 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     """
     from datetime import datetime
 
+    perfil = get_perfil(getattr(args, "perfil", None))
     base = Path(args.carpeta)
     base.mkdir(parents=True, exist_ok=True)
     entrada = base / "1. Documentos a procesar"
@@ -401,30 +417,35 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
 
     print("Paso 1 de 3: leyendo documentos (OCR local; puede tardar unos segundos por pagina)...")
     expediente = process_folder(
-        entrada_real, options=options, titulares_config=titulares, recursivo=True
+        entrada_real, options=options, titulares_config=titulares, recursivo=True,
+        perfil=perfil,
     )
     # Une los bloques fragmentados de una misma hoja en un solo documento.
-    expediente.documentos = consolidar_documentos(expediente.documentos)
-    prestadores = cargar_prestadores(None)
+    expediente.documentos = consolidar_documentos(expediente.documentos, perfil)
+    prestadores = cargar_prestadores(None) if perfil.usa_prestadores else None
     for documento in expediente.documentos:
-        refinar(documento, prestadores=prestadores)
+        perfil.refinar(documento, prestadores=prestadores)
     save_expediente(expediente, json_path)
     print(f"   Documentos: {len(expediente.documentos)} | titulares: {len(expediente.titulares)}")
 
     print("Paso 2 de 3: generando la revision para corregir...")
-    generar_revisor(expediente, html_path, image_rel_prefix="render/")
+    generar_revisor(
+        expediente, html_path, image_rel_prefix="render/", perfil=perfil
+    )
 
     print("Paso 3 de 3: generando el informe Word...")
-    generar_informe(expediente, docx_path, image_root=render, incluir_imagenes=False)
+    generar_informe(
+        expediente, docx_path, image_root=render, incluir_imagenes=False, perfil=perfil
+    )
 
     documentos_dir = None
     if getattr(args, "ordenar", False):
         try:
             print("   (extra) agrupando documentos por categoria en Resultados/Documentos ...")
-            prestadores = cargar_prestadores(None)
-            grupos = agrupar_refinado(expediente.documentos, prestadores)
+            prestadores = cargar_prestadores(None) if perfil.usa_prestadores else None
+            grupos = agrupar_refinado(expediente.documentos, prestadores, perfil)
             documentos_dir = resultados / "Documentos"
-            ordenar(
+            resultado_orden = ordenar(
                 grupos,
                 origen=[entrada_real],
                 destino=documentos_dir,
@@ -434,6 +455,15 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
                 calidad=args.calidad,
                 prestadores=prestadores,
                 dry_run=False,
+                perfil=perfil,
+            )
+            escribir_indice_csv(grupos, documentos_dir / "indice.csv", perfil)
+            escribir_indice_docx(grupos, documentos_dir / "indice.docx", perfil=perfil)
+            escribir_leeme(
+                resultado_orden,
+                documentos_dir / "LEEME.txt",
+                origen=[str(entrada_real)],
+                perfil=perfil,
             )
         except Exception as error:  # no debe romper el proceso principal
             print(f"   (aviso) no se pudo ordenar automaticamente: {error}", file=sys.stderr)
@@ -477,11 +507,12 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
 
 def _cmd_clasificar(args: argparse.Namespace) -> int:
     """Clasifica rapido SIN OCR usando la capa de texto de los PDF."""
+    perfil = get_perfil(getattr(args, "perfil", None))
     carpeta = Path(args.carpeta)
     if not carpeta.exists():
         print(f"Error: no existe: {carpeta}", file=sys.stderr)
         return 2
-    items = clasificar_sin_ocr(carpeta, recursivo=args.recursivo)
+    items = clasificar_sin_ocr(carpeta, recursivo=args.recursivo, perfil=perfil)
     res = resumen_clasif(items)
     print(
         f"Archivos: {res['total']} | con texto: {res['con_texto']} | "
@@ -496,6 +527,16 @@ def _cmd_clasificar(args: argparse.Namespace) -> int:
     if args.csv:
         print(f"CSV: {escribir_csv_clasif(items, Path(args.csv))}")
     return 0
+
+
+def _agregar_perfil(parser: argparse.ArgumentParser) -> None:
+    """Agrega la opcion de perfil documental a un subcomando."""
+    parser.add_argument(
+        "--perfil",
+        default="salud",
+        choices=("salud", "legal"),
+        help="Perfil documental: 'salud' (por defecto) o 'legal'",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -557,12 +598,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--recursivo", action="store_true",
         help="Recorre tambien las subcarpetas (expedientes organizados en carpetas)",
     )
+    _agregar_perfil(p_proc)
     p_proc.set_defaults(func=_cmd_procesar)
 
     p_rev = sub.add_parser("revisor", help="Genera revisor HTML desde un expediente JSON")
     p_rev.add_argument("json", help="Expediente JSON")
     p_rev.add_argument("--html", default="salidas/revision.html", help="HTML de salida")
     p_rev.add_argument("--image-prefix", default="render/", dest="image_prefix")
+    _agregar_perfil(p_rev)
     p_rev.set_defaults(func=_cmd_revisor)
 
     p_inf = sub.add_parser("informe", help="Genera el informe Word")
@@ -573,6 +616,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--con-imagenes", action="store_true", dest="con_imagenes",
         help="Incluir los recortes de imagen en el Word (por defecto no: el PDF ya los tiene)",
     )
+    _agregar_perfil(p_inf)
     p_inf.set_defaults(func=_cmd_informe)
 
     p_ord = sub.add_parser(
@@ -611,6 +655,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", dest="dry_run",
         help="No escribe nada; solo informa como quedaria la carpeta",
     )
+    _agregar_perfil(p_ord)
     p_ord.set_defaults(func=_cmd_ordenar)
 
     p_comp = sub.add_parser(
@@ -648,6 +693,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", dest="dry_run",
         help="No escribe el PDF; solo informa y genera la tabla",
     )
+    _agregar_perfil(p_comp)
     p_comp.set_defaults(func=_cmd_compilar)
 
     p_exp = sub.add_parser(
@@ -687,6 +733,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--calidad", type=int, default=CALIDAD_JPEG,
         help=f"Calidad JPEG al comprimir, 0-100 (por defecto {CALIDAD_JPEG})",
     )
+    _agregar_perfil(p_exp)
     p_exp.set_defaults(func=_cmd_expediente)
 
     p_cla = sub.add_parser(
@@ -705,6 +752,7 @@ def build_parser() -> argparse.ArgumentParser:
                        help="Recorre subcarpetas (por defecto si)")
     p_cla.add_argument("--no-recursivo", dest="recursivo", action="store_false",
                        help="Solo la carpeta indicada, sin subcarpetas")
+    _agregar_perfil(p_cla)
     p_cla.set_defaults(func=_cmd_clasificar)
     return parser
 

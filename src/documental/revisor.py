@@ -27,19 +27,33 @@ def generar_revisor(
     destino: Path,
     *,
     image_rel_prefix: str = "render/",
+    perfil=None,
 ) -> Path:
     """Genera el HTML de revision y devuelve su ruta.
 
     `image_rel_prefix` es la ruta relativa desde el HTML hasta la carpeta de
     recortes generada por el pipeline (por defecto `salidas/render/`).
     """
+    if perfil is None:
+        from .perfiles import get_perfil
+
+        perfil = get_perfil()
+    etiquetas = dict(FIELD_LABELS)
+    etiquetas.update(perfil.etiquetas_campo())
+    editable = tuple(etiquetas.keys())
+    criticos = tuple(perfil.campos_criticos())
+
     destino = Path(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
 
     payload = expediente.to_dict()
     # Semaforo por documento en la cabecera de cada tarjeta.
     for doc_dict, doc in zip(payload["documentos"], expediente.documentos):
-        doc_dict["confianza"] = doc.confianza_global()
+        doc_dict["confianza"] = doc.confianza_global(criticos)
+        # Los campos del perfil se exponen planos para que el revisor los
+        # muestre y los exporte igual que los campos comunes.
+        for nombre, campo in (doc_dict.get("extra") or {}).items():
+            doc_dict.setdefault(nombre, campo)
     payload["prefijo_imagenes"] = image_rel_prefix
 
     plantilla = _TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -47,9 +61,9 @@ def generar_revisor(
     html = (
         plantilla.replace("__TITULO__", Path(expediente.carpeta).name)
         .replace("__DATOS__", datos)
-        .replace("__ETIQUETAS__", json.dumps(FIELD_LABELS, ensure_ascii=False))
-        .replace("__CRITICOS__", json.dumps(list(CRITICAL_FIELD_NAMES), ensure_ascii=False))
-        .replace("__CAMPOS__", json.dumps(list(EDITABLE_FIELDS), ensure_ascii=False))
+        .replace("__ETIQUETAS__", json.dumps(etiquetas, ensure_ascii=False))
+        .replace("__CRITICOS__", json.dumps(list(criticos), ensure_ascii=False))
+        .replace("__CAMPOS__", json.dumps(list(editable), ensure_ascii=False))
         .replace("__MONTO__", json.dumps(sorted(AMOUNT_FIELDS), ensure_ascii=False))
     )
     destino.write_text(html, encoding="utf-8")
@@ -77,6 +91,8 @@ def aplicar_correcciones(expediente: Expediente, base: dict) -> int:
     cambios = 0
     por_id = {d["doc_id"]: d for d in base.get("documentos", [])}
     for doc_dict in original["documentos"]:
+        for nombre, campo in (doc_dict.get("extra") or {}).items():
+            doc_dict.setdefault(nombre, campo)
         corregido = por_id.get(doc_dict["doc_id"])
         if not corregido:
             continue

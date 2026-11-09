@@ -57,6 +57,7 @@ from .compilar import (
 )
 from .individualizacion import Grupo, agrupar, filas
 from .models import Document
+from .perfiles import Perfil, get_perfil
 
 # Nombre del PDF consolidado de cada categoria (va primero en la carpeta).
 CONSOLIDADO = "00-{clave}.pdf"
@@ -88,16 +89,20 @@ def _ruta_de(archivo: str, indice: dict[str, Path]) -> Path | None:
 
 
 def _destino_de(
-    grupo: Grupo, raiz: Path, prestadores: tuple[Prestador, ...] | None
+    grupo: Grupo,
+    raiz: Path,
+    prestadores: tuple[Prestador, ...] | None,
+    perfil: Perfil | None = None,
 ) -> tuple[str, str, Path]:
     """Categoria, subcarpeta y ruta del PDF individual de un grupo."""
     from .categorias import fecha_texto
 
+    perfil = perfil or grupo._perfil
     categoria = grupo.categoria
-    carpeta = raiz / CATEGORIA_CARPETA.get(categoria, "06-otros")
+    carpeta = raiz / perfil.carpeta(categoria)
 
     subcarpeta = ""
-    if categoria == CAT_FICHAS:
+    if perfil.clave_fichas and categoria == perfil.clave_fichas:
         # El prestador puede estar solo en una de las hojas del documento.
         for documento in grupo.documentos:
             subcarpeta = prestador_de(documento, prestadores)
@@ -160,6 +165,7 @@ def ordenar(
     calidad: int = CALIDAD_JPEG,
     prestadores: tuple[Prestador, ...] | None = None,
     dry_run: bool = False,
+    perfil: Perfil | None = None,
 ) -> ResultadoOrden:
     """Escribe el arbol de carpetas por categoria con un PDF por documento.
 
@@ -175,6 +181,7 @@ def ordenar(
 
     destino = Path(destino)
     indice = _indice(origen)
+    perfil = perfil or get_perfil()
     resultado = ResultadoOrden(destino=destino, dry_run=dry_run)
 
     # Un mismo PDF de origen puede contener documentos de varias categorias, por
@@ -197,19 +204,22 @@ def ordenar(
                 try:
                     for grupo in sorted(lista, key=lambda g: g.numero):
                         categoria, subcarpeta, ruta_pdf = _destino_de(
-                            grupo, destino, prestadores
+                            grupo, destino, prestadores, perfil
                         )
                         resultado.por_categoria[categoria] = (
                             resultado.por_categoria.get(categoria, 0) + 1
                         )
-                        if categoria == CAT_FICHAS:
+                        if perfil.clave_fichas and categoria == perfil.clave_fichas:
                             llave = subcarpeta or "SIN PRESTADOR"
                             resultado.por_prestador[llave] = (
                                 resultado.por_prestador.get(llave, 0) + 1
                             )
                             if not subcarpeta:
                                 resultado.sin_prestador += 1
-                        if categoria == "otros" and grupo.tipo == "Documento sin clasificar":
+                        if (
+                            categoria == perfil.clave_otros
+                            and grupo.tipo == perfil.tipo_sin_clasificar
+                        ):
                             resultado.sin_clasificar += 1
                         for numero in grupo.paginas:
                             llave = f"{grupo.archivo} p.{numero}"
@@ -245,7 +255,7 @@ def ordenar(
         for categoria, consolidado in consolidados.items():
             try:
                 if consolidado.page_count:
-                    carpeta = destino / CATEGORIA_CARPETA.get(categoria, "06-otros")
+                    carpeta = destino / perfil.carpeta(categoria)
                     carpeta.mkdir(parents=True, exist_ok=True)
                     ruta = carpeta / CONSOLIDADO.format(clave=categoria)
                     if comprimir:
@@ -270,11 +280,13 @@ def ordenar(
 def agrupar_refinado(
     documentos: list[Document],
     prestadores: tuple[Prestador, ...] | None = None,
+    perfil: Perfil | None = None,
 ) -> list[Grupo]:
     """Refina los documentos (tipo canonico y datos faltantes) y los agrupa."""
+    perfil = perfil or get_perfil()
     for documento in documentos:
-        refinar(documento, prestadores=prestadores)
-    return agrupar(documentos)
+        perfil.refinar(documento, prestadores=prestadores)
+    return agrupar(documentos, perfil)
 
 
 def _columnas_csv() -> list[str]:
@@ -296,13 +308,20 @@ def _columnas_csv() -> list[str]:
     ]
 
 
-def escribir_indice_csv(grupos: list[Grupo], path: Path) -> Path:
+def escribir_indice_csv(
+    grupos: list[Grupo], path: Path, perfil: Perfil | None = None
+) -> Path:
     """Indice completo de los documentos ordenados (separador ``;`` para Excel)."""
     import csv
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    columnas = _columnas_csv()
+    perfil = perfil or (grupos[0]._perfil if grupos else get_perfil())
+    columnas = [clave for clave, _ in perfil.columnas()] + [
+        "archivo",
+        "pagina",
+        "confianza",
+    ]
     with path.open("w", encoding="utf-8-sig", newline="") as archivo:
         escritor = csv.DictWriter(archivo, fieldnames=columnas, delimiter=";")
         escritor.writeheader()
@@ -333,10 +352,13 @@ def escribir_indice_docx(
     path: Path,
     *,
     titulo: str = "Indice de documentos por categoria",
+    perfil: Perfil | None = None,
 ) -> Path:
     """Indice en Word, con una seccion y una tabla por categoria."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    perfil = perfil or (grupos[0]._perfil if grupos else get_perfil())
+    columnas = perfil.columnas()
     documento = DocxDocument()
     documento.add_heading(titulo, level=1)
     documento.add_paragraph(
@@ -344,14 +366,12 @@ def escribir_indice_docx(
         "conserva el mismo numero que aparece en esta tabla."
     )
 
-    from .individualizacion import COLUMNAS
-
-    for clave, etiqueta, _ in CATEGORIAS:
-        del_grupo = [g for g in grupos if g.categoria == clave]
+    for categoria in perfil.categorias:
+        del_grupo = [g for g in grupos if g.categoria == categoria.clave]
         if not del_grupo:
             continue
-        documento.add_heading(f"{etiqueta} ({len(del_grupo)})", level=2)
-        _tabla(documento, del_grupo, COLUMNAS)
+        documento.add_heading(f"{categoria.etiqueta} ({len(del_grupo)})", level=2)
+        _tabla(documento, del_grupo, columnas)
         documento.add_paragraph("")
 
     documento.save(str(path))
@@ -363,10 +383,12 @@ def escribir_leeme(
     path: Path,
     *,
     origen: list[str] | None = None,
+    perfil: Perfil | None = None,
 ) -> Path:
     """Manifiesto de lo generado, para que el expediente sea reproducible."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    perfil = perfil or get_perfil()
     lineas = [
         "EXPEDIENTE ORDENADO POR CATEGORIA",
         "=================================",
@@ -377,10 +399,10 @@ def escribir_leeme(
     if origen:
         lineas.append("Origen: " + ", ".join(origen))
     lineas += ["", "Documentos por categoria:"]
-    for clave, etiqueta, carpeta in CATEGORIAS:
-        total = resultado.por_categoria.get(clave, 0)
+    for categoria in perfil.categorias:
+        total = resultado.por_categoria.get(categoria.clave, 0)
         if total:
-            lineas.append(f"  {carpeta:16s} {total:4d}  {etiqueta}")
+            lineas.append(f"  {categoria.carpeta:16s} {total:4d}  {categoria.etiqueta}")
 
     if resultado.por_prestador:
         lineas += ["", "Fichas por prestador:"]
@@ -415,17 +437,18 @@ def escribir_leeme(
     ):
         lineas.append("  - sin advertencias")
 
-    lineas += [
-        "",
-        "Reglas de individualizacion aplicadas:",
-        "  bonos         nombre del instrumento, emisor, folio, paciente y receptor",
-        "  boletas       tipo, razon social, RUT, detalle de la compra y valor",
-        "  fichas        nombre del documento, prestador y fecha de atencion",
-        "  recetas       paciente, fecha y prestador que firma",
-        "  certificados  emisor y fecha",
-        "",
-        "El medicamento de las recetas esta manuscrito y no se transcribe.",
-        "Los nombres manuscritos ilegibles quedan marcados para revision.",
-    ]
+    lineas += ["", f"Perfil aplicado: {perfil.nombre}"]
+    if perfil.nombre == "salud":
+        lineas += [
+            "Reglas de individualizacion aplicadas:",
+            "  bonos         nombre del instrumento, emisor, folio, paciente y receptor",
+            "  boletas       tipo, razon social, RUT, detalle de la compra y valor",
+            "  fichas        nombre del documento, prestador y fecha de atencion",
+            "  recetas       paciente, fecha y prestador que firma",
+            "  certificados  emisor y fecha",
+            "",
+            "El medicamento de las recetas esta manuscrito y no se transcribe.",
+            "Los nombres manuscritos ilegibles quedan marcados para revision.",
+        ]
     path.write_text("\n".join(lineas) + "\n", encoding="utf-8")
     return path

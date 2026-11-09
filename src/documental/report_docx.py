@@ -125,11 +125,14 @@ def _add_heading(doc: DocxDocument, text: str, level: int = 1) -> None:
         run.font.color.rgb = RGBColor(0x1F, 0x3A, 0x5F)
 
 
-def _build_cover(doc: DocxDocument, expediente: Expediente) -> None:
+def _build_cover(doc: DocxDocument, expediente: Expediente, perfil=None) -> None:
     """Portada del informe."""
+    from .perfiles import get_perfil
+
+    perfil = perfil or get_perfil()
     title = doc.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = title.add_run("INFORME DE DOCUMENTACION MEDICA")
+    run = title.add_run(perfil.titulo_informe)
     run.bold = True
     run.font.size = Pt(20)
     run.font.color.rgb = RGBColor(0x1F, 0x3A, 0x5F)
@@ -147,7 +150,10 @@ def _build_cover(doc: DocxDocument, expediente: Expediente) -> None:
     rows = [
         ("Carpeta de origen", expediente.carpeta),
         ("Documentos analizados", str(len(expediente.documentos))),
-        ("Titulares identificados", str(len(expediente.titulares))),
+        (
+            "Partes identificadas" if not perfil.usa_titulares else "Titulares identificados",
+            str(len(expediente.titulares)),
+        ),
         ("Fecha de generacion", datetime.now().strftime("%d-%m-%Y %H:%M")),
         ("Procesamiento", "OCR local (RapidOCR / ONNX Runtime) + revision asistida"),
     ]
@@ -182,8 +188,14 @@ def _doc_total(doc: Document) -> int | None:
     return None
 
 
-def _build_summary(doc: DocxDocument, expediente: Expediente) -> None:
-    """Resumen por titular con conteo de documentos y montos."""
+def _build_summary(doc: DocxDocument, expediente: Expediente, perfil=None) -> None:
+    """Resumen por titular (salud) o por categoria (legal)."""
+    from .perfiles import get_perfil
+
+    perfil = perfil or get_perfil()
+    if not perfil.usa_titulares:
+        _build_category_summary(doc, expediente, perfil)
+        return
     _add_heading(doc, "1. Resumen por titular", 1)
 
     if not expediente.titulares:
@@ -234,13 +246,71 @@ def _build_summary(doc: DocxDocument, expediente: Expediente) -> None:
         run.font.color.rgb = CONFIDENCE_COLORS[CONF_BAJA]
 
 
-def _build_index_table(doc: DocxDocument, expediente: Expediente) -> None:
+def _valor(item: Document, nombre: str) -> str:
+    """Valor de un campo (comun o del perfil) como texto."""
+    valor = item.field(nombre).value
+    if valor in (None, "", [], {}):
+        return ""
+    return str(valor)
+
+
+def _fecha_item(item: Document) -> str:
+    for nombre in ("fecha_emision", "fecha_atencion", "fecha_vencimiento"):
+        valor = _valor(item, nombre)
+        if valor:
+            return valor
+    return "-"
+
+
+def _build_category_summary(doc: DocxDocument, expediente: Expediente, perfil) -> None:
+    """Resumen por categoria documental (perfiles sin titulares, como legal)."""
+    _add_heading(doc, "1. Resumen por categoria", 1)
+
+    conteo: dict[str, int] = {}
+    for item in expediente.documentos:
+        clave = perfil.categoria_de_tipo(perfil.tipo_canonico(item))
+        conteo[clave] = conteo.get(clave, 0) + 1
+
+    if not conteo:
+        doc.add_paragraph("No se detectaron documentos clasificables en la carpeta.")
+        return
+
+    table = doc.add_table(rows=1, cols=3)
+    table.style = "Table Grid"
+    header = table.rows[0].cells
+    for cell, text in zip(header, ("Categoria", "Carpeta", "Documentos")):
+        cell.text = text
+        cell.paragraphs[0].runs[0].bold = True
+        _set_cell_background(cell, "1F3A5F")
+        cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+
+    for categoria in perfil.categorias:
+        total = conteo.get(categoria.clave, 0)
+        cells = table.add_row().cells
+        cells[0].text = categoria.etiqueta
+        cells[1].text = categoria.carpeta
+        cells[2].text = str(total)
+
+    doc.add_paragraph()
+
+
+def _build_index_table(
+    doc: DocxDocument, expediente: Expediente, perfil=None
+) -> None:
     """Tabla consolidada de todos los documentos del expediente."""
+    from .perfiles import get_perfil
+
+    perfil = perfil or get_perfil()
     _add_heading(doc, "2. Indice de documentos", 1)
 
-    headers = (
-        "N", "Tipo de documento", "Titular", "RUT", "Fecha", "Emisor", "Total $", "Estado",
-    )
+    if perfil.usa_titulares:
+        headers = (
+            "N", "Tipo de documento", "Titular", "RUT", "Fecha", "Emisor", "Total $", "Estado",
+        )
+    else:
+        headers = (
+            "N", "Tipo de documento", "ROL / RIT", "Tribunal", "Caratula", "Fecha", "Parte", "Estado",
+        )
     table = doc.add_table(rows=1, cols=len(headers))
     table.style = "Table Grid"
     for cell, text in zip(table.rows[0].cells, headers):
@@ -252,21 +322,37 @@ def _build_index_table(doc: DocxDocument, expediente: Expediente) -> None:
 
     for number, item in enumerate(expediente.documentos, start=1):
         cells = table.add_row().cells
-        values = (
-            str(number),
-            item.tipo_documento.value or FAMILY_LABELS.get(item.familia, item.familia),
-            item.titular_nombre.value or "-",
-            item.titular_rut.value or "-",
-            item.fecha_emision.value or item.fecha_atencion.value or "-",
-            item.emisor_nombre.value or "-",
-            format_clp(_doc_total(item)) or "-",
-            CONFIDENCE_LABELS.get(item.confianza_global(), "-"),
-        )
+        if perfil.usa_titulares:
+            values = (
+                str(number),
+                item.tipo_documento.value or FAMILY_LABELS.get(item.familia, item.familia),
+                item.titular_nombre.value or "-",
+                item.titular_rut.value or "-",
+                item.fecha_emision.value or item.fecha_atencion.value or "-",
+                item.emisor_nombre.value or "-",
+                format_clp(_doc_total(item)) or "-",
+                CONFIDENCE_LABELS.get(
+                    item.confianza_global(perfil.campos_criticos()), "-"
+                ),
+            )
+        else:
+            values = (
+                str(number),
+                item.tipo_documento.value or perfil.tipo_canonico(item),
+                _valor(item, "rol") or "-",
+                _valor(item, "tribunal") or "-",
+                _valor(item, "caratula") or "-",
+                _fecha_item(item),
+                _valor(item, "parte_demandante") or "-",
+                CONFIDENCE_LABELS.get(
+                    item.confianza_global(perfil.campos_criticos()), "-"
+                ),
+            )
         for cell, value in zip(cells, values):
             cell.text = str(value)
             for run in cell.paragraphs[0].runs:
                 run.font.size = Pt(8)
-        estado = item.confianza_global()
+        estado = item.confianza_global(perfil.campos_criticos())
         if estado in (CONF_BAJA, CONF_FALTA):
             _set_cell_background(cells[-1], "FDE7E7")
 
@@ -288,29 +374,36 @@ def _build_document_card(
     number: int,
     image_root: Path | None,
     incluir_imagenes: bool = False,
+    perfil=None,
 ) -> None:
     """Ficha individual de un documento con sus datos y, si se pide, su recorte."""
+    from .perfiles import get_perfil
+
+    perfil = perfil or get_perfil()
     _add_heading(doc, f"3.{number} {item.titulo or item.tipo_documento.value}", 2)
 
     origen = doc.add_paragraph()
     origen.add_run("Archivo: ").bold = True
     origen.add_run(f"{item.source_file} (pagina {item.page}, bloque {item.index_in_page})")
     origen.add_run("   Familia: ").bold = True
-    origen.add_run(FAMILY_LABELS.get(item.familia, item.familia))
+    origen.add_run(perfil.etiqueta_familia(item.familia))
 
     estado = doc.add_paragraph()
     estado.add_run("Estado de lectura: ").bold = True
-    estado.add_run(CONFIDENCE_LABELS.get(item.confianza_global(), "-"))
+    estado.add_run(CONFIDENCE_LABELS.get(item.confianza_global(perfil.campos_criticos()), "-"))
     if item.familia_confianza == CONF_BAJA:
         estado.add_run("  (familia documental inferida, revisar)").italic = True
 
     table = doc.add_table(rows=0, cols=3)
     table.style = "Table Grid"
-    for name, field in item.fields().items():
+    etiquetas = dict(FIELD_LABELS)
+    etiquetas.update(perfil.etiquetas_campo())
+    campos = list(item.fields().items()) + list(item.extra.items())
+    for name, field in campos:
         if field.is_empty and field.confidence == CONF_FALTA:
             continue
         cells = table.add_row().cells
-        cells[0].text = FIELD_LABELS.get(name, name)
+        cells[0].text = etiquetas.get(name, name)
         cells[0].paragraphs[0].runs[0].bold = True
         cells[0].paragraphs[0].runs[0].font.size = Pt(9)
         _set_cell_background(cells[0], "F2F5F9")
@@ -363,16 +456,23 @@ def _build_document_card(
     doc.add_page_break()
 
 
-def _build_verification_annex(doc: DocxDocument, expediente: Expediente) -> None:
+def _build_verification_annex(
+    doc: DocxDocument, expediente: Expediente, perfil=None
+) -> None:
     """Anexo con los datos que requieren contraste con el original."""
+    from .perfiles import get_perfil
+
+    perfil = perfil or get_perfil()
+    etiquetas = dict(FIELD_LABELS)
+    etiquetas.update(perfil.etiquetas_campo())
     _add_heading(doc, "4. Anexo de verificacion", 1)
 
     pendientes: list[tuple[Document, str, str, str]] = []
     for item in expediente.documentos:
-        for name in item.campos_a_revisar():
+        for name in item.campos_a_revisar(perfil.campos_criticos()):
             field = item.field(name)
             pendientes.append(
-                (item, FIELD_LABELS.get(name, name), _format_value(name, field.value), field.note)
+                (item, etiquetas.get(name, name), _format_value(name, field.value), field.note)
             )
 
     # Documentos sin titular asociado.
@@ -446,6 +546,7 @@ def generar_informe(
     *,
     image_root: Path | None = None,
     incluir_imagenes: bool = False,
+    perfil=None,
 ) -> Path:
     """Genera el informe Word y devuelve la ruta del archivo creado.
 
@@ -460,9 +561,9 @@ def generar_informe(
 
     doc = DocxDocument()
     _configure_page(doc)
-    _build_cover(doc, expediente)
-    _build_summary(doc, expediente)
-    _build_index_table(doc, expediente)
+    _build_cover(doc, expediente, perfil)
+    _build_summary(doc, expediente, perfil)
+    _build_index_table(doc, expediente, perfil)
 
     _add_heading(doc, "3. Fichas por documento", 1)
     if incluir_imagenes:
@@ -476,9 +577,9 @@ def generar_informe(
             "confianza. Las imagenes de los documentos estan en el PDF compilado."
         )
     for number, item in enumerate(expediente.documentos, start=1):
-        _build_document_card(doc, item, number, image_root, incluir_imagenes)
+        _build_document_card(doc, item, number, image_root, incluir_imagenes, perfil)
 
-    _build_verification_annex(doc, expediente)
+    _build_verification_annex(doc, expediente, perfil)
 
     footer = doc.sections[0].footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER

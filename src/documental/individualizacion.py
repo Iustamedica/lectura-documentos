@@ -35,6 +35,7 @@ from .categorias import (
 )
 from .models import CONFIDENCE_ORDER, Document
 from .normalizers import format_clp, format_date_cl, parse_date, rut_body
+from .perfiles import Perfil, get_perfil
 
 # Campos que se prueban, en este orden, para fechar un documento.
 CAMPOS_FECHA = ("fecha_emision", "fecha_atencion", "fecha_vencimiento")
@@ -80,28 +81,25 @@ def _rut_de(documento: Document) -> int | None:
     return rut_body(documento.titular_rut.value or None)
 
 
-def _compatible(tipo_a: str, tipo_b: str) -> bool:
+def _compatible(tipo_a: str, tipo_b: str, perfil: Perfil) -> bool:
     """True si dos bloques pueden ser partes del mismo documento fisico."""
     if tipo_a == tipo_b:
         return True
-    genericos = {T_FICHA, T_SIN_CLASIFICAR}
+    genericos = {perfil.tipo_ficha, perfil.tipo_sin_clasificar}
+    genericos.discard("")
     return tipo_a in genericos or tipo_b in genericos
 
 
-def _sin_conflicto(anteriores: list[Document], posteriores: list[Document]) -> bool:
-    """True si los bloques no se contradicen en folio ni en RUT del titular."""
-    folios_a = {_texto(d.folio) for d in anteriores if _texto(d.folio)}
-    folios_b = {_texto(d.folio) for d in posteriores if _texto(d.folio)}
-    if folios_a and folios_b and not (folios_a & folios_b):
-        return False
-    ruts_a = {rut for rut in (_rut_de(d) for d in anteriores) if rut}
-    ruts_b = {rut for rut in (_rut_de(d) for d in posteriores) if rut}
-    if ruts_a and ruts_b and not (ruts_a & ruts_b):
-        return False
-    return True
+def _sin_conflicto(
+    anteriores: list[Document], posteriores: list[Document], perfil: Perfil
+) -> bool:
+    """True si los bloques no se contradicen en folio, RUT o ROL."""
+    return not perfil.conflicto(anteriores, posteriores)
 
 
-def _unidades_de_hoja(bloques: list[Document]) -> list[list[Document]]:
+def _unidades_de_hoja(
+    bloques: list[Document], perfil: Perfil | None = None
+) -> list[list[Document]]:
     """Consolida los bloques de una misma hoja en documentos fisicos.
 
     El layout parte una hoja en varios bloques (columnas, tablas, un pie de
@@ -113,12 +111,17 @@ def _unidades_de_hoja(bloques: list[Document]) -> list[list[Document]]:
     dominante de la hoja, porque un fragmento sin texto utilizable no constituye
     un documento autonomo.
     """
-    tipos = [tipo_canonico(d) for d in bloques]
-    categorias = [categoria_de(d) for d in bloques]
-    dominante = next((c for c in categorias if c != CAT_OTROS), "")
+    perfil = perfil or get_perfil()
+    tipos = [perfil.tipo_canonico(d) for d in bloques]
+    categorias = [perfil.categoria_de_tipo(tipo) for tipo in tipos]
+    dominante = next((c for c in categorias if c != perfil.clave_otros), "")
     asignadas = [
         dominante
-        if (categoria == CAT_OTROS and tipo == T_SIN_CLASIFICAR and dominante)
+        if (
+            categoria == perfil.clave_otros
+            and tipo == perfil.tipo_sin_clasificar
+            and dominante
+        )
         else categoria
         for categoria, tipo in zip(categorias, tipos)
     ]
@@ -128,7 +131,7 @@ def _unidades_de_hoja(bloques: list[Document]) -> list[list[Document]]:
         if (
             unidades
             and unidades[-1][0] == categoria
-            and _sin_conflicto(unidades[-1][1], [bloque])
+            and not perfil.conflicto(unidades[-1][1], [bloque])
         ):
             unidades[-1][1].append(bloque)
         else:
@@ -156,6 +159,12 @@ def _fusionar_bloques(bloques: list[Document]) -> Document:
                 campo.raw = otro_campo.raw
                 campo.note = otro_campo.note
         base.items.extend(otro.items)
+        for nombre, campo in otro.extra.items():
+            actual = base.extra.get(nombre)
+            if actual is None:
+                base.extra[nombre] = campo
+            elif actual.is_empty and not campo.is_empty:
+                base.extra[nombre] = campo
     return base
 
 
@@ -183,7 +192,9 @@ def _unidades_de_pagina(bloques: list[Document]) -> list[Document]:
     return [_fusionar_bloques(bloques)]
 
 
-def consolidar_documentos(documentos: list[Document]) -> list[Document]:
+def consolidar_documentos(
+    documentos: list[Document], perfil: Perfil | None = None
+) -> list[Document]:
     """Une los bloques que pertenecen al mismo documento fisico de una hoja.
 
     El layout parte una hoja en varios bloques; aqui se agrupan por hoja y se
@@ -200,7 +211,9 @@ def consolidar_documentos(documentos: list[Document]) -> list[Document]:
     return resultado
 
 
-def _continua(anteriores: list[Document], posteriores: list[Document]) -> bool:
+def _continua(
+    anteriores: list[Document], posteriores: list[Document], perfil: Perfil
+) -> bool:
     """True si ``posteriores`` es la hoja siguiente del mismo documento."""
     ultimo = anteriores[-1]
     primero = posteriores[0]
@@ -209,23 +222,26 @@ def _continua(anteriores: list[Document], posteriores: list[Document]) -> bool:
     if primero.page != ultimo.page + 1 or primero.index_in_page != 1:
         return False
 
-    categoria = categoria_de(ultimo)
-    if categoria != categoria_de(primero):
+    categoria = perfil.categoria_de_tipo(perfil.tipo_canonico(ultimo))
+    if categoria != perfil.categoria_de_tipo(perfil.tipo_canonico(primero)):
         return False
-    if not _compatible(tipo_canonico(ultimo), tipo_canonico(primero)):
+    if not _compatible(perfil.tipo_canonico(ultimo), perfil.tipo_canonico(primero), perfil):
         return False
-    if not _sin_conflicto(anteriores, posteriores):
+    if perfil.conflicto(anteriores, posteriores):
         return False
 
     # Un documento sin clasificar puede ser cualquier cosa: solo se une con una
     # senal explicita (mismo folio o mismo RUT) que lo justifique.
     if (
-        tipo_canonico(ultimo) == T_SIN_CLASIFICAR
-        and tipo_canonico(primero) == T_SIN_CLASIFICAR
+        perfil.tipo_canonico(ultimo) == perfil.tipo_sin_clasificar
+        and perfil.tipo_canonico(primero) == perfil.tipo_sin_clasificar
     ):
-        folios = {_texto(d.folio) for d in anteriores + posteriores if _texto(d.folio)}
-        ruts = {rut for rut in (_rut_de(d) for d in anteriores + posteriores) if rut}
-        return len(folios) == 1 or len(ruts) == 1
+        claves = [perfil.identificadores(d) for d in anteriores + posteriores]
+        for nombre in set().union(*(clave.keys() for clave in claves)):
+            valores = {clave[nombre] for clave in claves if clave.get(nombre)}
+            if len(valores) == 1:
+                return True
+        return False
     return True
 
 
@@ -235,6 +251,11 @@ class Grupo:
 
     numero: int
     documentos: list[Document] = field(default_factory=list)
+    perfil: Perfil | None = None
+
+    @property
+    def _perfil(self) -> Perfil:
+        return self.perfil or get_perfil()
 
     @property
     def primero(self) -> Document:
@@ -277,7 +298,7 @@ class Grupo:
         Se calcula sobre todas las hojas del grupo para que un fragmento suelto
         en la primera hoja no bautice el documento completo.
         """
-        return tipo_de_grupo(self.documentos)
+        return self._perfil.tipo_de_grupo(self.documentos)
 
     @property
     def categoria(self) -> str:
@@ -287,13 +308,13 @@ class Grupo:
         encabezado el OCR no pudo leer no debe arrastrar el documento entero a
         la carpeta de "otros".
         """
-        return categoria_de_tipo(tipo_de_grupo(self.documentos))
+        return self._perfil.categoria_de_tipo(self._perfil.tipo_de_grupo(self.documentos))
 
     @property
     def detalle(self) -> str:
         """Elementos propios de la categoria (prestador, detalle de compra...)."""
         for documento in self.documentos:
-            texto = detalle_de(documento)
+            texto = self._perfil.detalle_de(documento)
             if texto:
                 return texto
         return ""
@@ -313,9 +334,10 @@ class Grupo:
     @property
     def confianza(self) -> str:
         """Peor confianza entre las paginas del grupo."""
-        peor = self.primero.confianza_global()
+        criticos = self._perfil.campos_criticos()
+        peor = self.primero.confianza_global(criticos)
         for documento in self.documentos[1:]:
-            otra = documento.confianza_global()
+            otra = documento.confianza_global(criticos)
             if CONFIDENCE_ORDER.get(otra, 9) > CONFIDENCE_ORDER.get(peor, 9):
                 peor = otra
         return peor
@@ -332,7 +354,7 @@ def _clave_cronologica(bloque: list[Document]) -> tuple:
     return (fecha is None, fecha or date.max, primero.source_file, primero.page)
 
 
-def agrupar(documentos: list[Document]) -> list[Grupo]:
+def agrupar(documentos: list[Document], perfil: Perfil | None = None) -> list[Grupo]:
     """Agrupa y numera los documentos en orden cronologico.
 
     El proceso va de lo chico a lo grande: primero se consolidan los bloques de
@@ -340,6 +362,7 @@ def agrupar(documentos: list[Document]) -> list[Grupo]:
     dejado con un pie de pagina suelto) y despues se unen las hojas
     consecutivas que pertenecen al mismo documento.
     """
+    perfil = perfil or get_perfil()
     ordenados = sorted(
         documentos, key=lambda d: (d.source_file, d.page, d.index_in_page)
     )
@@ -350,11 +373,11 @@ def agrupar(documentos: list[Document]) -> list[Grupo]:
 
     unidades: list[list[Document]] = []
     for clave in hojas:  # el dict conserva el orden de insercion
-        unidades.extend(_unidades_de_hoja(hojas[clave]))
+        unidades.extend(_unidades_de_hoja(hojas[clave], perfil))
 
     bloques: list[list[Document]] = []
     for unidad in unidades:
-        if bloques and _continua(bloques[-1], unidad):
+        if bloques and _continua(bloques[-1], unidad, perfil):
             bloques[-1].extend(unidad)
         else:
             bloques.append(list(unidad))
@@ -362,7 +385,7 @@ def agrupar(documentos: list[Document]) -> list[Grupo]:
     bloques = [bloque for bloque in bloques if bloque]
     bloques.sort(key=_clave_cronologica)
     return [
-        Grupo(numero=numero, documentos=bloque)
+        Grupo(numero=numero, documentos=bloque, perfil=perfil)
         for numero, bloque in enumerate(bloques, start=1)
     ]
 
@@ -375,7 +398,7 @@ def filas(grupos: list[Grupo]) -> list[dict[str, str]]:
         resultado.append(
             {
                 "N": str(grupo.numero),
-                "categoria": CATEGORIA_ETIQUETA.get(grupo.categoria, grupo.categoria),
+                "categoria": grupo._perfil.etiqueta(grupo.categoria),
                 "tipo": grupo.tipo,
                 "fecha": grupo.fecha_texto,
                 "emisor": grupo.valor("emisor_nombre"),
@@ -383,6 +406,12 @@ def filas(grupos: list[Grupo]) -> list[dict[str, str]]:
                 "titular": grupo.valor("titular_nombre"),
                 "rut_titular": grupo.valor("titular_rut"),
                 "folio": grupo.valor("folio"),
+                "rol": grupo.valor("rol"),
+                "tribunal": grupo.valor("tribunal"),
+                "caratula": grupo.valor("caratula"),
+                "parte": grupo.valor("parte_demandante"),
+                "parte_demandante": grupo.valor("parte_demandante"),
+                "parte_demandada": grupo.valor("parte_demandada"),
                 "monto_total": format_clp(int(monto)) if monto.isdigit() else monto,
                 "detalle": grupo.detalle,
                 "archivo": grupo.archivo,
@@ -394,7 +423,7 @@ def filas(grupos: list[Grupo]) -> list[dict[str, str]]:
     return resultado
 
 
-def escribir_csv(grupos: list[Grupo], path: Path) -> Path:
+def escribir_csv(grupos: list[Grupo], path: Path, perfil: Perfil | None = None) -> Path:
     """Escribe la tabla de individualizacion en CSV.
 
     Separador ``;`` y BOM de UTF-8 para que Excel en espanol lo abra en columnas
@@ -402,7 +431,8 @@ def escribir_csv(grupos: list[Grupo], path: Path) -> Path:
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    columnas = [clave for clave, _ in COLUMNAS] + ["archivo", "pagina", "confianza"]
+    perfil = perfil or (grupos[0]._perfil if grupos else get_perfil())
+    columnas = [clave for clave, _ in perfil.columnas()] + ["archivo", "pagina", "confianza"]
     with path.open("w", encoding="utf-8-sig", newline="") as archivo:
         escritor = csv.DictWriter(archivo, fieldnames=columnas, delimiter=";")
         escritor.writeheader()
@@ -412,11 +442,17 @@ def escribir_csv(grupos: list[Grupo], path: Path) -> Path:
 
 
 def escribir_docx(
-    grupos: list[Grupo], path: Path, *, titulo: str = "Individualizacion de documentos"
+    grupos: list[Grupo],
+    path: Path,
+    *,
+    titulo: str = "Individualizacion de documentos",
+    perfil: Perfil | None = None,
 ) -> Path:
     """Escribe la tabla de individualizacion en Word (insumo del escrito)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    perfil = perfil or (grupos[0]._perfil if grupos else get_perfil())
+    columnas = perfil.columnas()
 
     documento = DocxDocument()
     documento.add_heading(titulo, level=1)
@@ -426,9 +462,9 @@ def escribir_docx(
         "quedan al final."
     )
 
-    tabla = documento.add_table(rows=1, cols=len(COLUMNAS))
+    tabla = documento.add_table(rows=1, cols=len(columnas))
     tabla.style = "Table Grid"
-    for celda, (_, etiqueta) in zip(tabla.rows[0].cells, COLUMNAS):
+    for celda, (_, etiqueta) in zip(tabla.rows[0].cells, columnas):
         celda.text = ""
         corrida = celda.paragraphs[0].add_run(etiqueta)
         corrida.bold = True
@@ -436,7 +472,7 @@ def escribir_docx(
 
     for fila in filas(grupos):
         celdas = tabla.add_row().cells
-        for celda, (clave, _) in zip(celdas, COLUMNAS):
+        for celda, (clave, _) in zip(celdas, columnas):
             celda.text = ""
             corrida = celda.paragraphs[0].add_run(fila[clave] or "-")
             corrida.font.size = Pt(9)

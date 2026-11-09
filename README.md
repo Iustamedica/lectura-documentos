@@ -6,6 +6,17 @@ Pensada para abogados: toma los documentos escaneados (bonos, boletas, recetas, 
 
 > ⚖️ **La herramienta asiste, no reemplaza la revisión del abogado.** Revise siempre el borrador y el informe antes de usarlos.
 
+## Dos modos de trabajo
+
+| Modo | Para qué | Cómo se usa |
+|---|---|---|
+| **Salud** (por defecto) | Bonos, fichas, recetas, boletas y certificados de un expediente de salud. | Los accesos directos (`Procesar documentos`). |
+| **Legal** | Escritos, resoluciones, notificaciones, contratos y prueba de un expediente judicial. | `documental expediente --perfil legal` |
+
+El modo salud sigue funcionando **igual y local**: si no se indica perfil, la
+herramienta usa salud. El catálogo y los campos del modo legal están en
+**[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
+
 ## Qué hace
 - Lee **fotos (JPG/PNG) y PDF** de una carpeta.
 - **Clasifica y extrae** los datos de cada documento (sin OCR cuando el PDF ya trae texto, por velocidad).
@@ -68,4 +79,15 @@ python3 -m venv .venv
 PYTHONPATH=src .venv/bin/python -m documental.cli --help
 ```
 
-Comandos: `expediente`, `clasificar`, `preparar`, `procesar`, `revisor`, `informe`, `ordenar`, `compilar`. Requiere Python 3.10+.
+Comandos: `expediente`, `clasificar`, `preparar`, `procesar`, `revisor`, `informe`, `ordenar`, `compilar`.
+Requiere Python 3.10+.
+
+Perfiles: `--perfil salud` (por defecto) o `--perfil legal`.
+
+```bash
+# Inventario rápido de una carpeta judicial, sin OCR
+PYTHONPATH=src .venv/bin/python -m documental.cli clasificar "expediente/" --perfil legal --csv inventario.csv
+
+# Proceso completo del expediente legal
+PYTHONPATH=src .venv/bin/python -m documental.cli expediente --perfil legal --ordenar
+```

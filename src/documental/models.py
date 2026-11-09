@@ -9,6 +9,7 @@ dato en el revisor y regenerar el Word es un flujo directo.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from datetime import date, datetime
 from typing import Any
 
 # Niveles de confianza usados en todo el sistema.
@@ -31,7 +32,12 @@ class Field:
     edited: bool = False     # True si un humano lo corrigio en el revisor
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        # Las fechas se guardan como texto ISO para que el JSON del expediente
+        # (y el revisor HTML) siempre sea serializable.
+        if isinstance(data.get("value"), (date, datetime)):
+            data["value"] = data["value"].isoformat()
+        return data
 
     @staticmethod
     def from_dict(data: dict[str, Any] | None) -> "Field":
@@ -172,28 +178,32 @@ class Document:
     items: list[LineItem] = field(default_factory=list)
     texto_ocr: str = ""
     imagen: str = ""  # ruta relativa al recorte del documento
+    # Campos propios del perfil (por ejemplo ROL, tribunal, caratula en legal).
+    extra: dict[str, Field] = field(default_factory=dict)
 
     def fields(self) -> dict[str, Field]:
         """Campos escalares (Field) del documento, indexados por nombre."""
         return {name: getattr(self, name) for name in DOCUMENT_FIELD_NAMES}
 
     def field(self, name: str) -> Field:
-        return getattr(self, name)
+        if name in DOCUMENT_FIELD_NAMES:
+            return getattr(self, name)
+        return self.extra.get(name, Field())
 
-    def confianza_global(self) -> str:
+    def confianza_global(self, criticos: tuple[str, ...] | None = None) -> str:
         """Peor confianza entre los campos criticos del documento."""
         worst = CONF_ALTA
-        for name in CRITICAL_FIELD_NAMES:
+        for name in criticos or CRITICAL_FIELD_NAMES:
             actual = self.field(name).confidence
             if CONFIDENCE_ORDER.get(actual, 9) > CONFIDENCE_ORDER[worst]:
                 worst = actual
         return worst
 
-    def campos_a_revisar(self) -> list[str]:
+    def campos_a_revisar(self, criticos: tuple[str, ...] | None = None) -> list[str]:
         """Campos criticos vacios o de baja confianza (alimenta el semaforo)."""
         return [
             name
-            for name in CRITICAL_FIELD_NAMES
+            for name in (criticos or CRITICAL_FIELD_NAMES)
             if CONFIDENCE_ORDER.get(self.field(name).confidence, 9)
             >= CONFIDENCE_ORDER[CONF_BAJA]
         ]
@@ -210,6 +220,7 @@ class Document:
             "texto_ocr": self.texto_ocr,
             "imagen": self.imagen,
             "items": [item.to_dict() for item in self.items],
+            "extra": {name: value.to_dict() for name, value in self.extra.items()},
         }
         for name, value in self.fields().items():
             data[name] = value.to_dict()
@@ -231,6 +242,22 @@ class Document:
         for name in DOCUMENT_FIELD_NAMES:
             setattr(doc, name, Field.from_dict(data.get(name)))
         doc.items = [LineItem.from_dict(i) for i in data.get("items", [])]
+        doc.extra = {
+            name: Field.from_dict(value)
+            for name, value in (data.get("extra") or {}).items()
+        }
+        # El revisor exporta los campos del perfil en el nivel superior (planos).
+        # Se recogen aqui para que las correcciones sobrevivan al JSON.
+        meta = {
+            "doc_id", "source_file", "page", "index_in_page", "familia",
+            "familia_confianza", "titulo", "texto_ocr", "imagen", "items",
+            "extra", "confianza",
+        }
+        for name, value in data.items():
+            if name in meta or name in DOCUMENT_FIELD_NAMES:
+                continue
+            if isinstance(value, dict) and "value" in value:
+                doc.extra[name] = Field.from_dict(value)
         return doc
 
 
