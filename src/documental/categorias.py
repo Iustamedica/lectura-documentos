@@ -305,15 +305,20 @@ def prestador_de(
             if any(re.search(patron, ambito) for patron in prestador.patrones):
                 return prestador.nombre
 
-    # Heuristica generica: una linea del encabezado que parezca razon social.
+    # Heuristica generica: razon social en el encabezado. Se toma la marca de
+    # organizacion (clinica, hospital, laboratorio...) y hasta 3 palabras que la
+    # siguen, para no devolver una linea entera ("2026 Historial ... Clinica
+    # Alemana") como si fuera el nombre del prestador.
     for linea in _lineas(documento, 3):
-        plegada = f" {fold(linea)} "
         if looks_like_form_label(linea):
             continue
-        if any(marca in plegada for marca in _MARCAS_ORGANIZACION):
-            nombre = clean_name(linea)
-            if 4 <= len(nombre) <= 60:
-                return nombre.upper()
+        palabras = linea.split()
+        for i, palabra in enumerate(palabras):
+            plegada = fold(palabra)
+            if any(marca in plegada for marca in _MARCAS_ORGANIZACION):
+                candidato = clean_name(" ".join(palabras[i:i + 4]))
+                if 4 <= len(candidato) <= 60:
+                    return candidato.upper()
     return ""
 
 

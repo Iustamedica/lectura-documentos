@@ -327,3 +327,18 @@ class TestTiposAmpliados:
         doc = _doc("PODER ESPECIAL\nEn Santiago")
         assert tipo_canonico(doc) == T_PODER
         assert categoria_de(doc) == CAT_OTROS
+
+
+class TestPrestadorEncabezado:
+    """El emisor se deduce de una razon social en el encabezado, sin tabla."""
+
+    _TXT = "2026 Historial examinacion por dr Christian Clinica Alemana\nPaciente: X"
+
+    def test_prestador_desde_linea_larga(self):
+        doc = _doc(self._TXT, familia="documento_clinico")
+        assert prestador_de(doc) == "CLINICA ALEMANA"
+
+    def test_refinar_completa_emisor_en_ficha(self):
+        doc = _doc(self._TXT, familia="documento_clinico")
+        refinar(doc)
+        assert "ALEMANA" in str(doc.emisor_nombre.value)

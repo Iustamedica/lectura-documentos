@@ -29,7 +29,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .categorias import CATEGORIAS, cargar_prestadores
+from .categorias import CATEGORIAS, cargar_prestadores, refinar
 from .compilar import CALIDAD_JPEG, DPI_COMPRESION, compilar
 from .individualizacion import agrupar, escribir_csv, escribir_docx
 from .ingesta import DPI_CONVERSION, preparar
@@ -403,6 +403,9 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     expediente = process_folder(
         entrada_real, options=options, titulares_config=titulares, recursivo=True
     )
+    prestadores = cargar_prestadores(None)
+    for documento in expediente.documentos:
+        refinar(documento, prestadores=prestadores)
     save_expediente(expediente, json_path)
     print(f"   Documentos: {len(expediente.documentos)} | titulares: {len(expediente.titulares)}")
 
