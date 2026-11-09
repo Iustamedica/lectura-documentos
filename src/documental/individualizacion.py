@@ -159,22 +159,44 @@ def _fusionar_bloques(bloques: list[Document]) -> Document:
     return base
 
 
+def _unidades_de_pagina(bloques: list[Document]) -> list[Document]:
+    """Un documento por hoja, salvo que haya dos folios distintos (dos bonos).
+
+    Regla pensada para el flujo ``expediente``: una hoja del escaneo normalmente
+    es UN documento, aunque el layout la haya partido en varios bloques (y aun
+    cuando un bloque quedo mal clasificado, p. ej. un falso "PAGARE"). Solo se
+    separa cuando hay evidencia de dos documentos: folios diferentes.
+    """
+    por_folio: dict[str, list[Document]] = {}
+    for bloque in bloques:
+        folio = str(bloque.folio.value or "").strip()
+        if folio:
+            por_folio.setdefault(folio, []).append(bloque)
+    if len(por_folio) >= 2:
+        sin_folio = [
+            b for b in bloques if not str(b.folio.value or "").strip()
+        ]
+        unidades = list(por_folio.values())
+        if sin_folio:
+            unidades[0].extend(sin_folio)
+        return [_fusionar_bloques(u) for u in unidades]
+    return [_fusionar_bloques(bloques)]
+
+
 def consolidar_documentos(documentos: list[Document]) -> list[Document]:
     """Une los bloques que pertenecen al mismo documento fisico de una hoja.
 
-    El layout parte una hoja en varios bloques; aqui se agrupan con la misma
-    regla que usa la compilacion (misma categoria, sin folio ni RUT en
-    conflicto) y se fusionan en un solo ``Document``. Asi el revisor y el
-    informe muestran un documento por hoja, no fragmentos (y desaparecen los
-    falsos documentos vacios o "PAGARE" sueltos).
+    El layout parte una hoja en varios bloques; aqui se agrupan por hoja y se
+    fusionan en un solo ``Document`` (salvo que la hoja tenga dos folios
+    distintos, que son dos documentos). Asi el revisor y el informe muestran un
+    documento por hoja, sin fragmentos vacios ni falsos "PAGARE" sueltos.
     """
     por_hoja: dict[tuple, list[Document]] = {}
     for documento in documentos:
         por_hoja.setdefault((documento.source_file, documento.page), []).append(documento)
     resultado: list[Document] = []
     for bloques in por_hoja.values():
-        for unidad in _unidades_de_hoja(bloques):
-            resultado.append(_fusionar_bloques(unidad))
+        resultado.extend(_unidades_de_pagina(bloques))
     return resultado
 
 

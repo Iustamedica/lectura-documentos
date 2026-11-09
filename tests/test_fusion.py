@@ -26,3 +26,10 @@ def test_no_consolida_dos_bonos_distintos():
     d1 = _bloque(1, 1, "BONO DE ATENCION AMBULATORIA FONASA", folio="111")
     d2 = _bloque(1, 2, "BONO DE ATENCION AMBULATORIA FONASA", folio="222")
     assert len(consolidar_documentos([d1, d2])) == 2
+
+
+def test_una_hoja_con_bloques_mixtos_es_un_documento():
+    d1 = _bloque(1, 1, "EPICRISIS CLINICA ALEMANA")
+    d2 = _bloque(1, 2, "PAGARE debo y pagare")  # bloque mal clasificado
+    d3 = _bloque(1, 3, "continuacion")
+    assert len(consolidar_documentos([d1, d2, d3])) == 1
