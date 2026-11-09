@@ -31,7 +31,7 @@ from pathlib import Path
 
 from .categorias import CATEGORIAS, cargar_prestadores, refinar
 from .compilar import CALIDAD_JPEG, DPI_COMPRESION, compilar
-from .individualizacion import agrupar, escribir_csv, escribir_docx
+from .individualizacion import agrupar, consolidar_documentos, escribir_csv, escribir_docx
 from .ingesta import DPI_CONVERSION, preparar
 from .ocr import TARGET_HEIGHT
 from .organizar import (
@@ -403,6 +403,8 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     expediente = process_folder(
         entrada_real, options=options, titulares_config=titulares, recursivo=True
     )
+    # Une los bloques fragmentados de una misma hoja en un solo documento.
+    expediente.documentos = consolidar_documentos(expediente.documentos)
     prestadores = cargar_prestadores(None)
     for documento in expediente.documentos:
         refinar(documento, prestadores=prestadores)

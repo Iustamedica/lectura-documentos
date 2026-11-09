@@ -136,6 +136,48 @@ def _unidades_de_hoja(bloques: list[Document]) -> list[list[Document]]:
     return [documentos for _, documentos in unidades]
 
 
+def _fusionar_bloques(bloques: list[Document]) -> Document:
+    """Fusiona varios bloques (de la misma hoja y sin conflicto) en un Document.
+
+    Conserva el primer bloque y completa sus campos vacios con los del resto, y
+    concatena el texto OCR (para no perder datos al revisar).
+    """
+    base = bloques[0]
+    for otro in bloques[1:]:
+        base.texto_ocr = ((base.texto_ocr or "") + "\n" + (otro.texto_ocr or "")).strip()
+        for nombre, campo in base.fields().items():
+            try:
+                otro_campo = otro.field(nombre)
+            except (KeyError, AttributeError):
+                continue
+            if campo.is_empty and not otro_campo.is_empty:
+                campo.value = otro_campo.value
+                campo.confidence = otro_campo.confidence
+                campo.raw = otro_campo.raw
+                campo.note = otro_campo.note
+        base.items.extend(otro.items)
+    return base
+
+
+def consolidar_documentos(documentos: list[Document]) -> list[Document]:
+    """Une los bloques que pertenecen al mismo documento fisico de una hoja.
+
+    El layout parte una hoja en varios bloques; aqui se agrupan con la misma
+    regla que usa la compilacion (misma categoria, sin folio ni RUT en
+    conflicto) y se fusionan en un solo ``Document``. Asi el revisor y el
+    informe muestran un documento por hoja, no fragmentos (y desaparecen los
+    falsos documentos vacios o "PAGARE" sueltos).
+    """
+    por_hoja: dict[tuple, list[Document]] = {}
+    for documento in documentos:
+        por_hoja.setdefault((documento.source_file, documento.page), []).append(documento)
+    resultado: list[Document] = []
+    for bloques in por_hoja.values():
+        for unidad in _unidades_de_hoja(bloques):
+            resultado.append(_fusionar_bloques(unidad))
+    return resultado
+
+
 def _continua(anteriores: list[Document], posteriores: list[Document]) -> bool:
     """True si ``posteriores`` es la hoja siguiente del mismo documento."""
     ultimo = anteriores[-1]

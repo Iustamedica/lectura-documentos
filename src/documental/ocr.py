@@ -27,6 +27,10 @@ MAX_SCALE = 3.0
 # el dpi efectivo para no pasar de este presupuesto.
 MAX_PIXELS = 24_000_000
 
+# Si una pagina del PDF ya trae al menos estas palabras en su capa de texto, se
+# usan tal cual (sin OCR). Ahorra muchisimo tiempo en documentos digitales.
+UMBRAL_PALABRAS_TEXTO = 8
+
 
 @dataclass
 class Token:
@@ -196,10 +200,49 @@ def preprocess(image: Image.Image, *, target_height: int = TARGET_HEIGHT) -> Ima
         if acc > cutoff:
             high = value
             break
-    if high <= low:
-        high = min(255, low + 1)
-    stretch = gray.point(lambda p: max(0, min(255, int((p - low) * 255 / (high - low)))))
+    denom = high - low
+    if denom <= 0:
+        # Imagen en blanco (o de un solo tono): no hay nada que estirar.
+        return gray.convert("RGB")
+    stretch = gray.point(lambda p: max(0, min(255, int((p - low) * 255 / denom))))
     return stretch.convert("RGB")
+
+
+def _render_pagina(page, dpi: int, max_pixels: int = MAX_PIXELS):
+    """Renderiza una pagina y devuelve (imagen, dpi_efectivo) con tope de pixeles."""
+    ancho_pt, alto_pt = page.rect.width, page.rect.height
+    dpi_efectivo = dpi
+    if ancho_pt > 0 and alto_pt > 0:
+        escala = dpi / 72.0
+        pixeles = (ancho_pt * escala) * (alto_pt * escala)
+        if pixeles > max_pixels:
+            dpi_efectivo = int(max(72, dpi * math.sqrt(max_pixels / pixeles)))
+    pixmap = page.get_pixmap(dpi=dpi_efectivo, colorspace=pymupdf.csRGB)
+    imagen = Image.open(io.BytesIO(pixmap.tobytes("png"))).convert("RGB")
+    return imagen, dpi_efectivo
+
+
+def tokens_de_texto(page, dpi_efectivo: int) -> list[Token]:
+    """Tokens a partir de la capa de texto del PDF (sin OCR).
+
+    Las coordenadas del texto vienen en puntos (1/72 pulgada); se escalan al
+    mismo espacio en pixeles que tendria la imagen renderizada, para que el
+    layout y la extraccion funcionen igual que con el OCR.
+    """
+    escala = dpi_efectivo / 72.0
+    tokens: list[Token] = []
+    for x0, y0, x1, y1, texto, *_ in page.get_text("words"):
+        limpio = (texto or "").strip()
+        if not limpio:
+            continue
+        tokens.append(
+            Token(
+                text=limpio,
+                box=(x0 * escala, y0 * escala, x1 * escala, y1 * escala),
+                score=1.0,
+            )
+        )
+    return tokens
 
 
 def ocr_pages(
@@ -208,26 +251,36 @@ def ocr_pages(
     dpi: int = 300,
     target_height: int = TARGET_HEIGHT,
 ) -> list[PageOCR]:
-    """Ejecuta el pipeline completo sobre un archivo PDF o imagen."""
-    engine = engine or OCREngine()
-    suffix = path.suffix.lower()
-    raw_pages = (
-        load_image(path)
-        if suffix in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
-        else render_pdf(path, dpi=dpi)
-    )
+    """Ejecuta el pipeline sobre un archivo PDF o imagen.
 
-    results: list[PageOCR] = []
-    for index, raw in enumerate(raw_pages, start=1):
-        processed = preprocess(raw, target_height=target_height)
-        tokens = engine.run(processed)
-        results.append(
-            PageOCR(
-                page=index,
-                width=processed.width,
-                height=processed.height,
-                tokens=tokens,
-                image=processed,
+    En PDF con capa de texto usa esa capa directamente (sin OCR); solo hace OCR
+    en las paginas escaneadas (sin texto util). Las imagenes sueltas siempre
+    pasan por OCR.
+    """
+    suffix = path.suffix.lower()
+    if suffix in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
+        engine = engine or OCREngine()
+        results: list[PageOCR] = []
+        for index, raw in enumerate(load_image(path), start=1):
+            processed = preprocess(raw, target_height=target_height)
+            results.append(
+                PageOCR(index, processed.width, processed.height,
+                        engine.run(processed), processed)
             )
-        )
+        return results
+
+    results = []
+    with pymupdf.open(str(path)) as pdf:
+        for index, page in enumerate(pdf, start=1):
+            imagen, dpi_efectivo = _render_pagina(page, dpi)
+            tokens = tokens_de_texto(page, dpi_efectivo)
+            if len(tokens) >= UMBRAL_PALABRAS_TEXTO:
+                results.append(PageOCR(index, imagen.width, imagen.height, tokens, imagen))
+            else:
+                engine = engine or OCREngine()
+                processed = preprocess(imagen, target_height=target_height)
+                results.append(
+                    PageOCR(index, processed.width, processed.height,
+                            engine.run(processed), processed)
+                )
     return results
