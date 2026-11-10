@@ -20,7 +20,7 @@ este entorno y RapidOCR rinde mejor con escaneos de baja resolucion en espanol.
 > RUT, direcciones, diagnosticos, montos) son **datos sensibles de salud** y no
 > deben versionarse. Antes de hacer `git add`, verifique:
 >
-> - `caso.json` esta en `.gitignore`. Use `caso.ejemplo.json` como plantilla.
+> - `caso.json` esta en `.gitignore`. Use `ejemplos/salud/caso.ejemplo.json` como plantilla.
 > - Los escaneos (`escaneos*/`, `*.pdf`) estan en `.gitignore`.
 > - `salidas/` esta en `.gitignore` (contiene texto OCR e informes con datos).
 > - Los ejemplos del codigo y de los tests son **ficticios**
@@ -68,7 +68,7 @@ PYTHONPATH=src .venv/bin/python -m documental.cli --help
 # del proyecto que contiene un caso.json. Tambien se puede fijar a mano.
 
 # 1) crear la configuracion del caso a partir de la plantilla
-cp caso.ejemplo.json "<caso>/caso.json"      # luego editarlo con los datos reales
+cp ejemplos/salud/caso.ejemplo.json "<caso>/caso.json"      # luego editarlo con los datos reales
 
 # 2) procesar (por defecto toma <caso>/escaneos-csm)
 ./ejecutar.sh
@@ -85,7 +85,7 @@ CASO_DIR="/ruta/al/caso" ./ejecutar.sh       # forzar otra carpeta de caso
 ```
 
 `caso.json` (datos del caso) vive en la carpeta del caso, **fuera** del
-repositorio. Aqui solo se versiona `caso.ejemplo.json` con datos ficticios.
+repositorio. Aqui solo se versiona `ejemplos/salud/caso.ejemplo.json` con datos ficticios.
 
 
 ---
@@ -531,7 +531,7 @@ Limitaciones del ordenamiento por categoria (`ordenar`):
 
 ```
 herramientas/documental/          # ESTE repositorio: solo codigo, sin datos
-├── caso.ejemplo.json            # plantilla de configuracion (datos ficticios)
+├── ejemplos/salud/caso.ejemplo.json            # plantilla de configuracion (datos ficticios)
 ├── _caso.sh                     # resuelve la carpeta del caso (fuera del repo)
 ├── ejecutar.sh                  # OCR + extraccion + revisor HTML
 ├── informe.sh                   # Word desde el JSON corregido

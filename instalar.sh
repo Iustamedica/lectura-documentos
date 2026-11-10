@@ -19,5 +19,5 @@ echo "Instalando dependencias (puede tardar varios minutos)..."
 
 echo
 echo "Instalacion lista."
-echo "La PRIMERA vez que procese descargara los modelos de OCR (necesita internet)."
+echo "Los modelos de OCR vienen incluidos: no necesita internet para procesar."
 read -n 1 -r -p "Presione una tecla para cerrar..."

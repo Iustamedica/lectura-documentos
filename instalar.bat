@@ -19,5 +19,5 @@ call .venv\Scripts\python.exe -m pip install -r requirements.txt
 
 echo.
 echo Instalacion lista.
-echo La PRIMERA vez que procese descargara los modelos de OCR (necesita internet).
+echo Los modelos de OCR vienen incluidos: no necesita internet para procesar.
 pause

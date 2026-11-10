@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Solo para desarrollo y pruebas
+pytest==8.4.2

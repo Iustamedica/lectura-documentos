@@ -31,6 +31,11 @@ El paquete pesa alrededor de 200 MB (incluye el motor de OCR y sus modelos).
 
 > Si el enlace aún no tiene archivos (versión recién publicada), usa la instalación desde el código que aparece más abajo.
 
+> **Aviso de Windows:** el programa no está firmado digitalmente. Si aparece
+> "Windows protegió tu PC", haz clic en **Más información → Ejecutar de todas
+> formas**. Es normal en programas sin firma comercial. Algunos antivirus
+> pueden marcarlo como sospechoso (falso positivo de los empaquetados).
+
 ## Instalación desde el código (opcional, para informática)
 
 **1) Instalar (una sola vez)**
@@ -86,6 +91,12 @@ En simple:
 Para distribuir el software o acordar otro tipo de licencia, contacta al autor del proyecto.
 
 > Esta es una licencia *source-available* (código disponible), no una licencia de código abierto aprobada por OSI.
+
+## Contacto
+
+- **Dudas, errores o mejoras:** abre un *issue* en el repositorio.
+- **Licencias comerciales, distribución o adaptaciones:** abre un *issue* con el
+  título “Licencia comercial” o escribe a: _(completar correo de contacto)_.
 
 ---
 

@@ -11,12 +11,21 @@
 ## Principios del proyecto
 
 - **Procesamiento 100% local**: no se envían documentos ni datos a Internet.
-- **Datos sensibles**: el repositorio contiene solo el código; los expedientes
-  (nombres, RUT, diagnósticos) nunca se versionan.
+- **Los expedientes no se versionan**: el repositorio contiene solo el programa.
+  Las carpetas de trabajo (`Expediente/`, `Legal/`, salidas y JSON) están en
+  `.gitignore`.
 - **Revisión humana obligatoria**: la herramienta produce una primera versión
   editable que una persona debe confirmar antes de usarla.
 
 ## Licencia
 
-Ver `LICENSE`. (A definir por el autor del proyecto; se sugiere MIT para máxima
-reutilización por colegas, o una licencia que restrinja el uso comercial.)
+**PolyForm Internal Use License 1.0.0** — ver [`LICENSE`](LICENSE).
+
+- Uso **interno gratuito**, incluido el trabajo del estudio con sus propios casos.
+- Se puede **modificar** para uso interno.
+- **No** se puede distribuir el software, revenderlo ni incorporarlo en un
+  producto o servicio que se ofrezca a terceros.
+
+Para licencias comerciales, distribución o dudas de uso: abre un *issue* en el
+repositorio.
+
