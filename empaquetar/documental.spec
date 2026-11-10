@@ -17,6 +17,7 @@ RAIZ = Path(SPECPATH).resolve().parent
 SRC = RAIZ / "src"
 
 datas = [(str(SRC / "documental" / "revisor_template.html"), "documental")]
+datas += [(str(RAIZ / "LICENSE"), ".")]
 binaries = []
 hiddenimports = [
     "documental",

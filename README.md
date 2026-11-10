@@ -70,9 +70,22 @@ Para dejarlo fijo en una carpeta, crea un archivo **`perfil.txt`** con el texto 
 - El repositorio contiene **solo el programa**: los expedientes (nombres, RUT, datos del caso) **nunca** se suben. Detalles en [DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md).
 
 ## Créditos y licencia
+
 Desarrollado en colaboración con **DeepSeek** (asistencia de IA en diseño, implementación y pruebas). La validación de los documentos y el criterio jurídico son del equipo legal.
 
-> Licencia: ver `LICENSE` (a definir por el autor del proyecto).
+### Licencia
+
+**PolyForm Internal Use License 1.0.0** — texto completo en [LICENSE](LICENSE).
+
+En simple:
+
+- ✅ **Puedes usar la herramienta gratis dentro de tu estudio u oficina**, incluso para atender tus casos.
+- ✅ **Puedes modificarla** para uso interno.
+- ❌ **No puedes distribuirla, revenderla ni integrarla en un producto o servicio que ofrezcas a terceros.**
+
+Para distribuir el software o acordar otro tipo de licencia, contacta al autor del proyecto.
+
+> Esta es una licencia *source-available* (código disponible), no una licencia de código abierto aprobada por OSI.
 
 ---
 

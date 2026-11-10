@@ -131,6 +131,15 @@ class Ventana:
         )
         self.registro.pack(fill="both", expand=True, pady=(4, 0))
 
+        ttk.Label(
+            marco,
+            text=(
+                "Licencia PolyForm Internal Use 1.0.0: uso interno gratuito; "
+                "no distribuir ni revender."
+            ),
+            foreground="#666666",
+        ).pack(anchor="w", pady=(8, 0))
+
         self._actualizar_modo()
         self.var_carpeta.trace_add("write", lambda *_: self._actualizar_modo())
 
