@@ -1,0 +1,62 @@
+# Historial de cambios
+
+Todas las versiones relevantes del proyecto. Formato basado en
+[Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
+
+## [0.5.1] — 2026-11
+
+### Agregado
+- Licencia **PolyForm Internal Use 1.0.0** (`LICENSE`), con resumen en el README,
+  aviso en la app y copia dentro del paquete descargable.
+- Contacto para licencias comerciales.
+
+### Corregido
+- `AUTHORS.md` ya no sugiere MIT.
+- Se aclara que los modelos de OCR vienen incluidos (no se descargan).
+
+## [0.5.0] — 2026-11
+
+### Agregado
+- **Mini app de escritorio** (Tkinter): elegir carpeta, modo judicial/salud,
+  procesar, ver progreso y abrir resultados.
+- Empaquetado con **PyInstaller** para Windows y Linux.
+- Workflow de GitHub Actions que genera los ZIP y los adjunta a la Release.
+- Lanzadores `Lector de documentos` y `Procesar salud`.
+
+## [0.4.0] — 2026-11
+
+### Cambiado
+- El perfil **legal pasa a ser el predeterminado** en la CLI pública.
+- El modo **salud** queda opcional: `--perfil salud`, `DOCUMENTAL_PERFIL=salud`,
+  `perfil.txt` o `caso.json` en la carpeta.
+- README reescrito para el público judicial.
+
+## [0.3.0] — 2026-11
+
+### Agregado
+- Documentos **penales**: querella, denuncia, formalización, acusación,
+  sobreseimiento, sentencia condenatoria/absolutoria y medidas cautelares.
+- Documentos de **familia**: divorcio, alimentos, cuidado personal, relación
+  directa y regular, medida de protección (VIF).
+- **Campos críticos por tipo** documental (el semáforo ya no exige ROL a un
+  contrato).
+
+## [0.2.0] — 2026-11
+
+### Agregado
+- Arquitectura de **perfiles**: motor común + perfil `salud` (histórico) y
+  perfil `legal`.
+- Perfil legal: 8 categorías, ~40 tipos canónicos, extracción de ROL, tribunal,
+  carátula, partes, fojas, notaría y montos.
+- Índice con columnas judiciales, informe con resumen por categoría y revisor
+  con los campos del perfil.
+
+## [0.1.x] — 2026
+
+- OCR local con RapidOCR + PyMuPDF.
+- Clasificación y extracción de bonos, boletas, fichas, recetas y certificados.
+- Comando `expediente` (revisor HTML + informe Word).
+- Recursividad de carpetas y tope de píxeles al renderizar.
+- Comando `clasificar` sin OCR para inventarios rápidos.
+- Fusión de bloques por hoja y uso de la capa de texto en PDF digitales.
+- Corrección de división por cero en páginas en blanco.

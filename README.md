@@ -59,6 +59,19 @@ El paquete pesa alrededor de 200 MB (incluye el motor de OCR y sus modelos).
 | `Resultados/expediente.json` | Datos crudos (soporte técnico). |
 | `Resultados/Registro.txt` | Resumen del proceso (útil si algo falla). |
 
+## Documentación
+
+| Documento | Contenido |
+|---|---|
+| [GUIA-USO-LEGAL.md](GUIA-USO-LEGAL.md) | Guía paso a paso para abogados. |
+| [FAQ.md](FAQ.md) | Avisos de Windows, antivirus, tamaños y problemas frecuentes. |
+| [PERFIL-LEGAL.md](PERFIL-LEGAL.md) | Categorías, tipos de documento y campos del modo judicial. |
+| [PRIVACIDAD.md](PRIVACIDAD.md) | Cómo se tratan los datos del expediente. |
+| [AVISO-LEGAL.md](AVISO-LEGAL.md) | Alcance, límites del OCR y responsabilidad. |
+| [CHANGELOG.md](CHANGELOG.md) | Historial de versiones. |
+| [SECURITY.md](SECURITY.md) | Cómo reportar vulnerabilidades. |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Cómo colaborar con el proyecto. |
+
 ## Modo salud (opcional)
 
 El repositorio trabaja por defecto en modo **judicial (legal)**. Si tu trabajo es de salud (bonos, fichas, recetas, boletas), usa el acceso **`Procesar salud`** o agrega `--perfil salud`.
