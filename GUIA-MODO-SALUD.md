@@ -14,8 +14,8 @@ La hace **una vez** alguien con conocimientos básicos o informática:
 - **Windows:** doble clic en `instalar.bat`.
 - **Linux / Mac:** doble clic en `instalar.sh` (o `bash instalar.sh`).
 
-La **primera vez que procese** descargará los modelos de OCR (necesita internet
-esa única vez). Después puede usarse sin conexión.
+Los modelos de OCR vienen incluidos en el paquete: no necesita internet para
+procesar.
 
 ## Uso diario (muy simple)
 
@@ -26,12 +26,18 @@ esa única vez). Después puede usarse sin conexión.
    - Ideal: **escaneos derechos y legibles** (si están torcidos o borrosos, el
      resultado será peor).
 3. **Doble clic** en:
-   - Windows: `Procesar documentos.bat`
-   - Linux/Mac: `Procesar documentos.sh`
+   - Windows: `Procesar salud.bat`
+   - Linux/Mac: `Procesar salud.sh`
+
+   También puede abrir **`Lector de documentos`**, elegir la carpeta y marcar
+   **Salud** antes de procesar.
 4. Espere. Cuando diga **“LISTO”**, se abre solo:
    - **`Expediente → Resultados → Revision.html`** → ábralo en el navegador
      para **revisar y corregir** lo que el OCR haya leído mal.
    - **`Expediente → Resultados → Informe.docx`** → el informe en Word.
+
+> Para que esta carpeta use siempre el modo salud, crea un archivo `perfil.txt`
+> con el texto `salud`.
 
 ## Qué hay en `Resultados`
 

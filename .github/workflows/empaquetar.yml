@@ -30,10 +30,12 @@ jobs:
         with:
           name: LectorDeDocumentos-windows
           path: dist/LectorDeDocumentos-windows.zip
+          retention-days: 14
       - name: Publicar en Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: dist/LectorDeDocumentos-windows.zip
 
   linux:
@@ -57,8 +59,10 @@ jobs:
         with:
           name: LectorDeDocumentos-linux
           path: LectorDeDocumentos-linux.zip
+          retention-days: 14
       - name: Publicar en Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: LectorDeDocumentos-linux.zip

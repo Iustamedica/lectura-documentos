@@ -71,12 +71,16 @@ El paquete pesa alrededor de 200 MB (incluye el motor de OCR y sus modelos).
 | [CHANGELOG.md](CHANGELOG.md) | Historial de versiones. |
 | [SECURITY.md](SECURITY.md) | Cómo reportar vulnerabilidades. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Cómo colaborar con el proyecto. |
+| [DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md) | Arquitectura, perfiles y empaquetado (para informática). |
+| [DOCUMENTACION-MOTOR-Y-SALUD.md](DOCUMENTACION-MOTOR-Y-SALUD.md) | Detalle del motor y del modo salud. |
 
 ## Modo salud (opcional)
 
 El repositorio trabaja por defecto en modo **judicial (legal)**. Si tu trabajo es de salud (bonos, fichas, recetas, boletas), usa el acceso **`Procesar salud`** o agrega `--perfil salud`.
 
 Para dejarlo fijo en una carpeta, crea un archivo **`perfil.txt`** con el texto `salud`. Si la carpeta contiene un `caso.json`, la herramienta también asume el modo salud.
+
+📘 Guía del modo salud: **[GUIA-MODO-SALUD.md](GUIA-MODO-SALUD.md)**.
 
 ## Advertencias de calidad y tamaño
 - **Orientación:** documentos derechos y en la **misma orientación** (mejor lectura).
@@ -85,7 +89,7 @@ Para dejarlo fijo en una carpeta, crea un archivo **`perfil.txt`** con el texto 
 
 ## Privacidad
 - **Todo el procesamiento es local**; no se envía nada a internet.
-- El repositorio contiene **solo el programa**: los expedientes (nombres, RUT, datos del caso) **nunca** se suben. Detalles en [DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md).
+- El repositorio contiene **solo el programa**: los expedientes (nombres, RUT, datos del caso) **nunca** se suben. Detalles en [PRIVACIDAD.md](PRIVACIDAD.md).
 
 ## Créditos y licencia
 
@@ -114,7 +118,9 @@ Para distribuir el software o acordar otro tipo de licencia, contacta al autor d
 ---
 
 ## Para desarrolladores
-Documentación técnica (motor, perfil salud, comandos, pruebas): **[DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md)**. Perfil judicial: **[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
+Visión general (arquitectura, perfiles, estructura, pruebas y empaquetado): **[DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md)**.
+Detalle del motor y del modo salud: **[DOCUMENTACION-MOTOR-Y-SALUD.md](DOCUMENTACION-MOTOR-Y-SALUD.md)**.
+Perfil judicial: **[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
 
 ```bash
 python3 -m venv .venv

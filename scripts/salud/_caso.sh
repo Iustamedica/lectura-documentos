@@ -12,6 +12,7 @@
 # Este archivo se usa con "source"; no se ejecuta por si solo.
 
 CASO_DIRECTORIO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIRECTORIO="$(cd "$CASO_DIRECTORIO/../.." && pwd)"
 
 resolver_caso() {
     if [ -n "${CASO_DIR:-}" ]; then
@@ -21,7 +22,7 @@ resolver_caso() {
 
     local base carpeta
     local candidatas=()
-    base="$(cd "$CASO_DIRECTORIO/../../.." && pwd)" || return 1
+    base="$(cd "$REPO_DIRECTORIO/../../.." && pwd)" || return 1
     for carpeta in "$base"/*/; do
         if [ -f "${carpeta}caso.json" ]; then
             candidatas+=("${carpeta%/}")
@@ -39,5 +40,5 @@ error_sin_caso() {
     echo "ERROR: no pude determinar la carpeta del caso." >&2
     echo "Defina la variable CASO_DIR apuntando a la carpeta que contiene" >&2
     echo "caso.json y las carpetas de escaneos. Ejemplo:" >&2
-    echo '  CASO_DIR="/ruta/al/caso" ./ejecutar.sh' >&2
+    echo '  CASO_DIR="/ruta/al/caso" scripts/salud/ejecutar.sh' >&2
 }

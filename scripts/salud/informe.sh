@@ -2,7 +2,7 @@
 # Genera el informe Word a partir del JSON corregido en el revisor.
 #
 # Uso:
-#   ./informe.sh [JSON] [DOCX]
+#   scripts/salud/informe.sh [JSON] [DOCX]
 #
 # Por defecto usa <caso>/salidas/expediente_corregido.json si existe; si no,
 # <caso>/salidas/expediente.json (sin correcciones humanas). La carpeta del caso
@@ -10,9 +10,9 @@
 
 set -euo pipefail
 
-DIRECTORIO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIRECTORIO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=_caso.sh
-source "$DIRECTORIO/_caso.sh"
+source "$DIRECTORIO/scripts/salud/_caso.sh"
 
 if ! CASO="$(resolver_caso)"; then
     error_sin_caso
@@ -36,7 +36,7 @@ fi
 
 if [ ! -f "$JSON" ]; then
     echo "ERROR: no existe el archivo $JSON" >&2
-    echo "Ejecute primero ./ejecutar.sh" >&2
+    echo "Ejecute primero scripts/salud/ejecutar.sh" >&2
     exit 1
 fi
 

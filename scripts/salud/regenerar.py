@@ -15,7 +15,8 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+RAIZ = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(RAIZ / "src"))
 
 from documental.pipeline import _completar_desde_config, save_expediente  # noqa: E402
 from documental.report_docx import generar_informe  # noqa: E402

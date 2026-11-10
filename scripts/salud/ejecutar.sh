@@ -4,24 +4,24 @@
 #   2) generacion del revisor HTML
 #
 # Uso:
-#   ./ejecutar.sh [CARPETA_ESCANEOS]
+#   scripts/salud/ejecutar.sh [CARPETA_ESCANEOS]
 #
 # Los documentos del paciente, su caso.json y las salidas viven FUERA de este
 # repositorio, en la carpeta del caso (vease _caso.sh). Asi nada con datos
 # clinicos entra a git. Se puede fijar a mano con CASO_DIR:
 #
-#   CASO_DIR="/ruta/al/caso" ./ejecutar.sh
+#   CASO_DIR="/ruta/al/caso" scripts/salud/ejecutar.sh
 #
 # Despues de correr esto:
 #   - abrir <caso>/salidas/revision.html en el navegador y corregir
 #   - exportar "expediente_corregido.json" dentro de <caso>/salidas/
-#   - ./informe.sh   (Word)  y  ./compilar.sh   (PDF + individualizacion)
+#   - scripts/salud/informe.sh   (Word)  y  scripts/salud/compilar.sh   (PDF + individualizacion)
 
 set -euo pipefail
 
-DIRECTORIO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIRECTORIO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=_caso.sh
-source "$DIRECTORIO/_caso.sh"
+source "$DIRECTORIO/scripts/salud/_caso.sh"
 
 if ! CASO="$(resolver_caso)"; then
     error_sin_caso
@@ -70,4 +70,4 @@ PYTHONPATH=src "$PYTHON" -m documental.cli procesar "$ESCANEOS" \
 echo
 echo "== 2/2 Listo."
 echo "   Siguiente paso: abrir $SALIDAS/revision.html, corregir y exportar"
-echo "   'expediente_corregido.json' dentro de $SALIDAS/. Luego ./informe.sh"
+echo "   'expediente_corregido.json' dentro de $SALIDAS/. Luego scripts/salud/informe.sh"

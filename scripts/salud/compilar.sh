@@ -2,7 +2,7 @@
 # Compila el PDF unico para el tribunal y la tabla de individualizacion.
 #
 # Uso:
-#   ./compilar.sh [JSON] [CARPETA_ORIGEN] [PREFIJO]
+#   scripts/salud/compilar.sh [JSON] [CARPETA_ORIGEN] [PREFIJO]
 #
 # Por defecto:
 #   JSON           = <caso>/salidas/expediente_corregido.json (o expediente.json)
@@ -16,14 +16,14 @@
 # expediente de fotos de celular baja de cientos de MB a decenas. Para conservar
 # la resolucion original:
 #
-#   COMPRIMIR=0 ./compilar.sh
-#   DPI=300 CALIDAD=90 ./compilar.sh      # menos agresivo
+#   COMPRIMIR=0 scripts/salud/compilar.sh
+#   DPI=300 CALIDAD=90 scripts/salud/compilar.sh      # menos agresivo
 
 set -euo pipefail
 
-DIRECTORIO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIRECTORIO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=_caso.sh
-source "$DIRECTORIO/_caso.sh"
+source "$DIRECTORIO/scripts/salud/_caso.sh"
 
 if ! CASO="$(resolver_caso)"; then
     error_sin_caso
@@ -47,7 +47,7 @@ fi
 
 if [ ! -f "$JSON" ]; then
     echo "ERROR: no existe el expediente $JSON" >&2
-    echo "Ejecute primero ./ejecutar.sh" >&2
+    echo "Ejecute primero scripts/salud/ejecutar.sh" >&2
     exit 1
 fi
 

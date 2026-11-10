@@ -121,6 +121,12 @@ class Ventana:
             state="disabled",
         )
         self.boton_abrir.pack(side="left", padx=8)
+        self.boton_corregir = ttk.Button(
+            acciones,
+            text="Actualizar informe con correcciones",
+            command=self.actualizar_corregido,
+        )
+        self.boton_corregir.pack(side="left", padx=8)
 
         self.progreso = ttk.Progressbar(marco, mode="indeterminate")
         self.progreso.pack(fill="x", pady=(0, 8))
@@ -176,11 +182,7 @@ class Ventana:
                 "Falta la carpeta", "Elija la carpeta del expediente."
             )
             return
-        self.procesando = True
         self.resultados = carpeta / "Resultados"
-        self.boton_procesar.configure(state="disabled")
-        self.boton_abrir.configure(state="disabled")
-        self.progreso.start(12)
         self.registro.configure(state="normal")
         self.registro.delete("1.0", "end")
         self.registro.configure(state="disabled")
@@ -196,9 +198,53 @@ class Ventana:
         if self.var_ordenar.get():
             argumentos += ["--ordenar", "--comprimir"]
 
+        self.procesando = False
+        self._lanzar(argumentos)
+
+    def _lanzar(self, argumentos: list[str]) -> None:
+        """Ejecuta un comando en segundo plano y bloquea los botones."""
+        if self.procesando:
+            return
+        self.procesando = True
+        self.boton_procesar.configure(state="disabled")
+        self.boton_corregir.configure(state="disabled")
+        self.boton_abrir.configure(state="disabled")
+        self.progreso.start(12)
         hilo = threading.Thread(target=self._trabajar, args=(argumentos,), daemon=True)
         hilo.start()
         self.root.after(120, self._revisar_cola)
+
+    def actualizar_corregido(self) -> None:
+        """Regenera el informe Word desde el JSON corregido en el revisor."""
+        if self.procesando:
+            return
+        inicial = self.resultados or (
+            Path(self.var_carpeta.get()).expanduser() / "Resultados"
+        )
+        archivo = self.filedialog.askopenfilename(
+            title="Elija el expediente_corregido.json exportado del revisor",
+            initialdir=str(inicial) if inicial.exists() else str(Path.home()),
+            filetypes=[("Expediente corregido", "*.json"), ("Todos", "*.*")],
+        )
+        if not archivo:
+            return
+        ruta = Path(archivo)
+        destino = ruta.parent / "Informe-corregido.docx"
+        self.resultados = ruta.parent
+        self.registro.configure(state="normal")
+        self.registro.delete("1.0", "end")
+        self.registro.configure(state="disabled")
+        self._append(f"Regenerando informe desde: {archivo}\n\n")
+        self._lanzar(
+            [
+                "informe",
+                archivo,
+                "--docx",
+                str(destino),
+                "--perfil",
+                self.var_perfil.get(),
+            ]
+        )
 
     # ------------------------------------------------------------------
     def _trabajar(self, argumentos: list[str]) -> None:
@@ -236,6 +282,7 @@ class Ventana:
         self.procesando = False
         self.progreso.stop()
         self.boton_procesar.configure(state="normal")
+        self.boton_corregir.configure(state="normal")
         if codigo == 0:
             self.boton_abrir.configure(state="normal")
             self._append("\nLISTO. Revise Revision.html e Informe.docx en Resultados.\n")
