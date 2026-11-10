@@ -327,6 +327,7 @@ def process_folder(
         expediente = resolve_expediente(
             todos, carpeta=str(folder), generado=generado, config=config
         )
+        expediente.perfil = perfil.nombre
         _completar_desde_config(expediente, config)
         return expediente
 
@@ -364,6 +365,7 @@ def process_folder(
     expediente = resolve_expediente(
         documents, carpeta=str(folder), generado=generado, config=config
     )
+    expediente.perfil = perfil.nombre
     _completar_desde_config(expediente, config)
     return expediente
 

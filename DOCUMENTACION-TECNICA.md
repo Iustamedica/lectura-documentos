@@ -1,10 +1,10 @@
 # Extractor documental (OCR local) para expedientes de salud
 
-> **Nota (v0.2.0):** este documento describe el motor y el **perfil salud**
-> (el histórico y por defecto). Desde v0.2.0 el repositorio incluye además el
-> **perfil legal** (`--perfil legal`), documentado en
-> [PERFIL-LEGAL.md](PERFIL-LEGAL.md). El motor (OCR, layout, revisor, compilador)
-> es común a ambos perfiles.
+> **Nota (v0.4.0):** este documento describe el motor y el **perfil salud**
+> (bonos, fichas, recetas). El perfil **legal** es el que se usa por defecto desde
+> v0.4.0 y esta documentado en [PERFIL-LEGAL.md](PERFIL-LEGAL.md). El modo salud
+> se activa con `--perfil salud` (o con `perfil.txt`/`caso.json` en la carpeta).
+> El motor (OCR, layout, revisor, compilador) es comun a ambos perfiles.
 
 Herramienta local que lee PDF escaneados (boletas, bonos FONASA, recetas,
 tickets de farmacia, pagares) **sin subir nada a internet**, extrae los datos de

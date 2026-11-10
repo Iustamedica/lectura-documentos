@@ -1,34 +1,19 @@
-# Lector de documentos para expedientes (OCR local)
+# Lector de documentos para expedientes judiciales (OCR local)
 
 **Convierte fotos y PDF de un expediente en un borrador editable y un informe Word, en tu propio computador y sin subir nada a internet.**
 
-Pensada para abogados: toma los documentos escaneados (bonos, boletas, recetas, fichas, certificados, escritos, etc.), extrae los datos de identificación (nombre, RUT, fechas, emisor, montos) y deja una **primera versión que se revisa y se corrige** y un **informe en Word**. Todo corre **local**.
+Pensado para abogados y equipos jurídicos: lee los documentos de un expediente (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, certificados, informes y peritajes), extrae los datos de identificación (ROL/RIT, tribunal, carátula, partes, fechas, montos) y deja una **primera versión que se revisa y se corrige**, más un **informe en Word**. Todo corre **local**.
 
 > ⚖️ **La herramienta asiste, no reemplaza la revisión del abogado.** Revise siempre el borrador y el informe antes de usarlos.
 
-## Dos modos de trabajo
-
-| Modo | Para qué | Cómo se usa |
-|---|---|---|
-| **Salud** (por defecto) | Bonos, fichas, recetas, boletas y certificados de un expediente de salud. | Los accesos directos (`Procesar documentos`). |
-| **Legal** | Escritos, resoluciones, notificaciones, contratos y prueba de un expediente judicial (civil, laboral, penal y familia). | `documental expediente --perfil legal` |
-
-El modo salud sigue funcionando **igual y local**: si no se indica perfil, la
-herramienta usa salud. El catálogo y los campos del modo legal están en
-**[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
-
 ## Qué hace
 - Lee **fotos (JPG/PNG) y PDF** de una carpeta.
-- **Clasifica y extrae** los datos de cada documento (sin OCR cuando el PDF ya trae texto, por velocidad).
+- **Clasifica** cada documento en una categoría judicial (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, informes, otros).
+- **Extrae** ROL/RIT, tribunal, carátula, partes, fechas, folios, notaría, abogados y montos.
 - Genera:
   - **`Revision.html`** — borrador editable para revisar y corregir.
-  - **`Informe.docx`** — informe en Word.
-  - (opcional) **PDFs ordenados por categoría** y comprimidos para el Poder Judicial.
-
-## Qué necesitas
-- Un computador con **Windows**, **macOS** o **Linux**.
-- Documentos en **buena calidad**: derechos, legibles y **en la misma orientación**.
-- La **primera vez**, internet para instalar (después funciona **sin conexión**).
+  - **`Informe.docx`** — informe en Word con portada, resumen por categoría, índice y fichas por documento.
+  - (opcional) **PDFs ordenados por categoría**, índice y comprimidos para el Poder Judicial.
 
 ## Inicio rápido (2 pasos)
 
@@ -44,15 +29,22 @@ herramienta usa salud. El catálogo y los campos del modo legal están en
    - **`Procesar y comprimir (Poder Judicial)`** — igual, y comprime los PDF a los límites de carga.
 4. Revisa **`Expediente/Resultados/Revision.html`** y **`Informe.docx`**.
 
-📘 Guía detallada paso a paso: **[GUIA-USO-ABOGADOS.md](GUIA-USO-ABOGADOS.md)**.
+📘 Catálogo, campos y límites del modo judicial: **[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
 
 ## Qué genera
 | Archivo | Para qué |
 |---|---|
 | `Resultados/Revision.html` | Abrir en el navegador para **revisar y corregir** los datos. |
-| `Resultados/Informe.docx` | El **informe Word**. |
-| `Resultados/Documentos/` | PDFs **ordenados por categoría** (si usas comprimir/ordenar). |
+| `Resultados/Informe.docx` | El **informe Word** (portada con ROL y carátula). |
+| `Resultados/Documentos/` | PDFs **ordenados por categoría** e índices (si usas comprimir/ordenar). |
+| `Resultados/expediente.json` | Datos crudos (soporte técnico). |
 | `Resultados/Registro.txt` | Resumen del proceso (útil si algo falla). |
+
+## Modo salud (opcional)
+
+El repositorio trabaja por defecto en modo **judicial (legal)**. Si tu trabajo es de salud (bonos, fichas, recetas, boletas), usa el acceso **`Procesar salud`** o agrega `--perfil salud`.
+
+Para dejarlo fijo en una carpeta, crea un archivo **`perfil.txt`** con el texto `salud`. Si la carpeta contiene un `caso.json`, la herramienta también asume el modo salud.
 
 ## Advertencias de calidad y tamaño
 - **Orientación:** documentos derechos y en la **misma orientación** (mejor lectura).
@@ -61,7 +53,7 @@ herramienta usa salud. El catálogo y los campos del modo legal están en
 
 ## Privacidad
 - **Todo el procesamiento es local**; no se envía nada a internet.
-- El repositorio contiene **solo el programa**: los expedientes (datos de salud, nombres, RUT) **nunca** se suben. Detalles en [DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md).
+- El repositorio contiene **solo el programa**: los expedientes (nombres, RUT, datos del caso) **nunca** se suben. Detalles en [DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md).
 
 ## Créditos y licencia
 Desarrollado en colaboración con **DeepSeek** (asistencia de IA en diseño, implementación y pruebas). La validación de los documentos y el criterio jurídico son del equipo legal.
@@ -71,7 +63,7 @@ Desarrollado en colaboración con **DeepSeek** (asistencia de IA en diseño, imp
 ---
 
 ## Para desarrolladores
-Documentación técnica completa (comandos, arquitectura, extractores, pruebas, privacidad): **[DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md)**.
+Documentación técnica (motor, perfil salud, comandos, pruebas): **[DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md)**. Perfil judicial: **[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
 
 ```bash
 python3 -m venv .venv
@@ -82,12 +74,15 @@ PYTHONPATH=src .venv/bin/python -m documental.cli --help
 Comandos: `expediente`, `clasificar`, `preparar`, `procesar`, `revisor`, `informe`, `ordenar`, `compilar`.
 Requiere Python 3.10+.
 
-Perfiles: `--perfil salud` (por defecto) o `--perfil legal`.
+Perfil por defecto: **legal**. Para salud: `--perfil salud`, `DOCUMENTAL_PERFIL=salud` o `perfil.txt`.
 
 ```bash
 # Inventario rápido de una carpeta judicial, sin OCR
-PYTHONPATH=src .venv/bin/python -m documental.cli clasificar "expediente/" --perfil legal --csv inventario.csv
+PYTHONPATH=src .venv/bin/python -m documental.cli clasificar "expediente/" --csv inventario.csv
 
-# Proceso completo del expediente legal
-PYTHONPATH=src .venv/bin/python -m documental.cli expediente --perfil legal --ordenar
+# Proceso completo del expediente judicial
+PYTHONPATH=src .venv/bin/python -m documental.cli expediente --ordenar
+
+# Modo salud (opcional)
+PYTHONPATH=src .venv/bin/python -m documental.cli expediente --perfil salud --ordenar
 ```

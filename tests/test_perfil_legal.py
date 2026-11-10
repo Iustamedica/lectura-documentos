@@ -9,6 +9,7 @@ from documental.cli import build_parser
 from documental.individualizacion import agrupar, filas
 from documental.models import Document, Expediente, Field
 from documental.perfiles import get_perfil
+from documental.perfiles.config import resolver_perfil
 from documental.perfiles.legal import catalogo
 from documental.revisor import generar_revisor
 
@@ -46,7 +47,9 @@ def test_perfil_legal_expone_su_catalogo():
     assert "rol" in perfil.campos_criticos()
 
 
-def test_perfil_por_defecto_es_salud():
+def test_perfil_interno_por_defecto_es_salud():
+    # El motor conserva salud como valor interno por compatibilidad; la CLI
+    # publica resuelve legal por defecto (ver pruebas del resolver).
     assert get_perfil().nombre == "salud"
 
 
@@ -181,11 +184,48 @@ def test_salud_conserva_identificadores():
 # Linea de comandos
 # ---------------------------------------------------------------------------
 
-def test_cli_acepta_perfil_legal_y_por_defecto_salud():
+def test_cli_acepta_perfil_legal_y_por_defecto_legal():
     parser = build_parser()
     assert parser.parse_args(["expediente", "--perfil", "legal"]).perfil == "legal"
-    assert parser.parse_args(["expediente"]).perfil == "salud"
-    assert parser.parse_args(["clasificar", "carpeta", "--perfil", "legal"]).perfil == "legal"
+    assert parser.parse_args(["expediente", "--perfil", "salud"]).perfil == "salud"
+    # Sin bandera, la CLI resuelve el perfil (legal por defecto).
+    assert parser.parse_args(["expediente"]).perfil is None
+    assert parser.parse_args(["clasificar", "carpeta"]).perfil is None
+
+
+# ---------------------------------------------------------------------------
+# Resolucion del perfil (legal publico por defecto, salud local)
+# ---------------------------------------------------------------------------
+
+def test_resolver_usa_legal_por_defecto(tmp_path):
+    assert resolver_perfil(None, tmp_path).nombre == "legal"
+
+
+def test_resolver_lee_perfil_txt(tmp_path):
+    (tmp_path / "perfil.txt").write_text("salud\n", encoding="utf-8")
+    assert resolver_perfil(None, tmp_path).nombre == "salud"
+
+
+def test_resolver_caso_json_implica_salud(tmp_path):
+    (tmp_path / "caso.json").write_text("[]", encoding="utf-8")
+    assert resolver_perfil(None, tmp_path).nombre == "salud"
+
+
+def test_resolver_explicito_gana_sobre_perfil_txt(tmp_path):
+    (tmp_path / "perfil.txt").write_text("salud\n", encoding="utf-8")
+    assert resolver_perfil("legal", tmp_path).nombre == "legal"
+
+
+def test_resolver_variable_de_entorno(tmp_path, monkeypatch):
+    monkeypatch.setenv("DOCUMENTAL_PERFIL", "salud")
+    assert resolver_perfil(None, tmp_path).nombre == "salud"
+
+
+def test_expediente_guarda_el_perfil():
+    expediente = Expediente(carpeta="x", generado="2025-01-01", perfil="legal")
+    datos = expediente.to_dict()
+    assert datos["perfil"] == "legal"
+    assert Expediente.from_dict(datos).perfil == "legal"
 
 
 # ---------------------------------------------------------------------------

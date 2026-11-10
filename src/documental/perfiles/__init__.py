@@ -10,6 +10,7 @@ Perfiles disponibles:
 """
 
 from .base import CampoDef, Categoria, Perfil
+from .config import resolver_perfil
 from .registro import PERFILES, get_perfil
 
-__all__ = ["PERFILES", "CampoDef", "Categoria", "Perfil", "get_perfil"]
+__all__ = ["PERFILES", "CampoDef", "Categoria", "Perfil", "get_perfil", "resolver_perfil"]

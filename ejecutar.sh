@@ -60,6 +60,7 @@ echo "== 1/2 Procesando escaneos de: $ESCANEOS"
 echo "   Salidas en: $SALIDAS"
 echo "   (puede tardar varios minutos; el progreso del OCR se muestra al final)"
 PYTHONPATH=src "$PYTHON" -m documental.cli procesar "$ESCANEOS" \
+    --perfil salud \
     --json "$SALIDAS/expediente.json" \
     --render "$SALIDAS/render" \
     --html "$SALIDAS/revision.html" \

@@ -8,11 +8,13 @@ documento describe el perfil `legal`.
 Uso:
 
 ```bash
-documental expediente --perfil legal --carpeta "Mi expediente" --ordenar
-documental clasificar "Carpeta con PDF" --perfil legal --csv inventario.csv
+documental expediente --carpeta "Mi expediente" --ordenar
+documental clasificar "Carpeta con PDF" --csv inventario.csv
 ```
 
-Sin `--perfil`, la herramienta usa **salud** (comportamiento de siempre).
+El perfil **legal es el que se usa por defecto**. El modo salud se activa con
+`--perfil salud`, con `DOCUMENTAL_PERFIL=salud` o con un `perfil.txt` que
+contenga `salud` en la carpeta de trabajo.
 
 ## Alcance v1
 

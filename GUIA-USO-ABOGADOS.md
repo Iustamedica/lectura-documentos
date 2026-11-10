@@ -1,4 +1,8 @@
-# Guía rápida para abogados — Lector de documentos
+# Guía rápida — Modo salud (opcional)
+
+> Esta guía corresponde al **modo salud** (bonos, fichas, recetas, boletas).
+> El repositorio usa por defecto el **modo judicial (legal)**: consulte
+> [README.md](README.md) y [PERFIL-LEGAL.md](PERFIL-LEGAL.md).
 
 Herramienta que **lee fotos y PDF** de un expediente, extrae los datos (sin subir
 nada a Internet) y deja una **primera versión editable** y un **informe en Word**.

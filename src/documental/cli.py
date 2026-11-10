@@ -42,7 +42,7 @@ from .organizar import (
     ordenar,
 )
 from .pipeline import PipelineOptions, process_folder, save_expediente
-from .perfiles import get_perfil
+from .perfiles import resolver_perfil
 from .revisor import cargar_expediente, generar_revisor
 from .report_docx import generar_informe
 from .titulares import load_titulares
@@ -137,8 +137,8 @@ def _cmd_preparar(args: argparse.Namespace) -> int:
 
 
 def _cmd_ordenar(args: argparse.Namespace) -> int:
-    perfil = get_perfil(getattr(args, "perfil", None))
     expediente = cargar_expediente(Path(args.json))
+    perfil = resolver_perfil(getattr(args, "perfil", None), args.json, expediente)
     if not expediente.documentos:
         print("Error: el expediente no tiene documentos.", file=sys.stderr)
         return 2
@@ -215,8 +215,8 @@ def _cmd_ordenar(args: argparse.Namespace) -> int:
 
 
 def _cmd_compilar(args: argparse.Namespace) -> int:
-    perfil = get_perfil(getattr(args, "perfil", None))
     expediente = cargar_expediente(Path(args.json))
+    perfil = resolver_perfil(getattr(args, "perfil", None), args.json, expediente)
     grupos = agrupar(expediente.documentos, perfil)
     if not grupos:
         print("Error: el expediente no tiene documentos.", file=sys.stderr)
@@ -274,8 +274,8 @@ def _cmd_compilar(args: argparse.Namespace) -> int:
 
 
 def _cmd_procesar(args: argparse.Namespace) -> int:
-    perfil = get_perfil(getattr(args, "perfil", None))
     carpeta = Path(args.carpeta)
+    perfil = resolver_perfil(getattr(args, "perfil", None), carpeta)
     if not carpeta.exists():
         print(f"Error: la carpeta no existe: {carpeta}", file=sys.stderr)
         return 2
@@ -310,8 +310,8 @@ def _cmd_procesar(args: argparse.Namespace) -> int:
 
 
 def _cmd_revisor(args: argparse.Namespace) -> int:
-    perfil = get_perfil(getattr(args, "perfil", None))
     expediente = cargar_expediente(Path(args.json))
+    perfil = resolver_perfil(getattr(args, "perfil", None), args.json, expediente)
     html = generar_revisor(
         expediente, Path(args.html), image_rel_prefix=args.image_prefix, perfil=perfil
     )
@@ -321,8 +321,8 @@ def _cmd_revisor(args: argparse.Namespace) -> int:
 
 
 def _cmd_informe(args: argparse.Namespace) -> int:
-    perfil = get_perfil(getattr(args, "perfil", None))
     expediente = cargar_expediente(Path(args.json))
+    perfil = resolver_perfil(getattr(args, "perfil", None), args.json, expediente)
     render = Path(args.render) if args.render else None
     destino = generar_informe(
         expediente,
@@ -367,8 +367,8 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     """
     from datetime import datetime
 
-    perfil = get_perfil(getattr(args, "perfil", None))
     base = Path(args.carpeta)
+    perfil = resolver_perfil(getattr(args, "perfil", None), base)
     base.mkdir(parents=True, exist_ok=True)
     entrada = base / "1. Documentos a procesar"
     resultados = base / "Resultados"
@@ -416,6 +416,7 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     )
 
     print("Paso 1 de 3: leyendo documentos (OCR local; puede tardar unos segundos por pagina)...")
+    print(f"   Perfil: {perfil.nombre}")
     expediente = process_folder(
         entrada_real, options=options, titulares_config=titulares, recursivo=True,
         perfil=perfil,
@@ -507,8 +508,8 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
 
 def _cmd_clasificar(args: argparse.Namespace) -> int:
     """Clasifica rapido SIN OCR usando la capa de texto de los PDF."""
-    perfil = get_perfil(getattr(args, "perfil", None))
     carpeta = Path(args.carpeta)
+    perfil = resolver_perfil(getattr(args, "perfil", None), carpeta)
     if not carpeta.exists():
         print(f"Error: no existe: {carpeta}", file=sys.stderr)
         return 2
@@ -518,6 +519,7 @@ def _cmd_clasificar(args: argparse.Namespace) -> int:
         f"Archivos: {res['total']} | con texto: {res['con_texto']} | "
         f"requieren OCR: {res['requiere_ocr']}"
     )
+    print(f"Perfil: {perfil.nombre}")
     print("Por categoria (solo con texto):")
     for categoria, total in res["por_categoria"].items():
         print(f"  {total:5d}  {categoria}")
@@ -533,9 +535,12 @@ def _agregar_perfil(parser: argparse.ArgumentParser) -> None:
     """Agrega la opcion de perfil documental a un subcomando."""
     parser.add_argument(
         "--perfil",
-        default="salud",
+        default=None,
         choices=("salud", "legal"),
-        help="Perfil documental: 'salud' (por defecto) o 'legal'",
+        help=(
+            "Perfil documental. Por defecto 'legal'; se usa 'salud' si la carpeta "
+            "tiene perfil.txt o caso.json, o si se indica aqui."
+        ),
     )
 
 

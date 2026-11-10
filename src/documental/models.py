@@ -280,6 +280,7 @@ class Expediente:
 
     carpeta: str
     generado: str
+    perfil: str = "salud"
     documentos: list[Document] = field(default_factory=list)
     titulares: list[Titular] = field(default_factory=list)
     advertencias: list[str] = field(default_factory=list)
@@ -288,6 +289,7 @@ class Expediente:
         return {
             "carpeta": self.carpeta,
             "generado": self.generado,
+            "perfil": self.perfil,
             "titulares": [t.to_dict() for t in self.titulares],
             "advertencias": self.advertencias,
             "documentos": [d.to_dict() for d in self.documentos],
@@ -298,6 +300,7 @@ class Expediente:
         return Expediente(
             carpeta=data.get("carpeta", ""),
             generado=data.get("generado", ""),
+            perfil=data.get("perfil", "salud"),
             titulares=[Titular(**t) for t in data.get("titulares", [])],
             advertencias=data.get("advertencias", []),
             documentos=[Document.from_dict(d) for d in data.get("documentos", [])],
