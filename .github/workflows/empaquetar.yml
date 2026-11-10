@@ -1,0 +1,64 @@
+name: Empaquetar aplicacion
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r empaquetar/requirements-build.txt
+      - name: Empaquetar
+        run: python -m PyInstaller --noconfirm --clean empaquetar/documental.spec
+      - name: Comprimir
+        shell: pwsh
+        run: Compress-Archive -Force -Path dist/LectorDeDocumentos/* -DestinationPath dist/LectorDeDocumentos-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LectorDeDocumentos-windows
+          path: dist/LectorDeDocumentos-windows.zip
+      - name: Publicar en Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/LectorDeDocumentos-windows.zip
+
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Tkinter (Linux)
+        run: sudo apt-get update && sudo apt-get install -y tk
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r empaquetar/requirements-build.txt
+      - name: Empaquetar
+        run: python -m PyInstaller --noconfirm --clean empaquetar/documental.spec
+      - name: Comprimir
+        run: zip -r -q LectorDeDocumentos-linux.zip dist/LectorDeDocumentos
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LectorDeDocumentos-linux
+          path: LectorDeDocumentos-linux.zip
+      - name: Publicar en Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: LectorDeDocumentos-linux.zip

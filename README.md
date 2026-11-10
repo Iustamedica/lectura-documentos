@@ -15,7 +15,23 @@ Pensado para abogados y equipos jurídicos: lee los documentos de un expediente 
   - **`Informe.docx`** — informe en Word con portada, resumen por categoría, índice y fichas por documento.
   - (opcional) **PDFs ordenados por categoría**, índice y comprimidos para el Poder Judicial.
 
-## Inicio rápido (2 pasos)
+## La forma más simple: usar la aplicación
+
+1. Descarga el paquete de la última versión publicada:
+   - **Windows:** [LectorDeDocumentos-windows.zip](https://github.com/iustamedica-png/lectura-documentos/releases/latest/download/LectorDeDocumentos-windows.zip)
+   - **Linux:** [LectorDeDocumentos-linux.zip](https://github.com/iustamedica-png/lectura-documentos/releases/latest/download/LectorDeDocumentos-linux.zip)
+2. Descomprime el ZIP en una carpeta (por ejemplo, el Escritorio).
+3. Doble clic en **`Lector de documentos`** (o `Lector de documentos.exe`).
+4. Elige la carpeta del expediente, marca el tipo de documentos y presiona **Procesar documentos**.
+5. Al terminar, abre **`Resultados/Revision.html`** para revisar y corregir los datos.
+
+No hace falta instalar Python, usar la terminal ni saber navegar GitHub.
+La primera vez puede tardar unos segundos en abrir; después funciona sin conexión.
+El paquete pesa alrededor de 200 MB (incluye el motor de OCR y sus modelos).
+
+> Si el enlace aún no tiene archivos (versión recién publicada), usa la instalación desde el código que aparece más abajo.
+
+## Instalación desde el código (opcional, para informática)
 
 **1) Instalar (una sola vez)**
 - **Windows:** doble clic en `instalar.bat`.
@@ -24,9 +40,7 @@ Pensado para abogados y equipos jurídicos: lee los documentos de un expediente 
 **2) Usar**
 1. Abre la carpeta **`Expediente`** (se crea sola).
 2. Copia tus **fotos y PDF** en **`Expediente/1. Documentos a procesar`**.
-3. Doble clic en:
-   - **`Procesar documentos`** — genera el borrador y el Word.
-   - **`Procesar y comprimir (Poder Judicial)`** — igual, y comprime los PDF a los límites de carga.
+3. Doble clic en **`Procesar documentos`** (o en `Lector de documentos` para la aplicación).
 4. Revisa **`Expediente/Resultados/Revision.html`** y **`Informe.docx`**.
 
 📘 Catálogo, campos y límites del modo judicial: **[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
@@ -85,4 +99,25 @@ PYTHONPATH=src .venv/bin/python -m documental.cli expediente --ordenar
 
 # Modo salud (opcional)
 PYTHONPATH=src .venv/bin/python -m documental.cli expediente --perfil salud --ordenar
+```
+
+### Generar el ejecutable (sin terminal para el usuario final)
+
+En Linux, la app necesita Tkinter (`sudo apt install python3-tk`). En Windows
+viene incluido con Python.
+
+```bash
+# Linux
+bash empaquetar/empaquetar_linux.sh
+
+# Windows (en un equipo Windows)
+empaquetar\empaquetar_windows.bat
+```
+
+El resultado queda en `dist/LectorDeDocumentos/`. Al publicar un tag (`v*`), el
+workflow `.github/workflows/empaquetar.yml` genera los ZIP de Windows y Linux y
+los adjunta a la Release; ese enlace es el que se comparte con los abogados:
+
+```
+https://github.com/iustamedica-png/lectura-documentos/releases/latest/download/LectorDeDocumentos-windows.zip
 ```
