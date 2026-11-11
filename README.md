@@ -18,8 +18,8 @@ Pensado para abogados y equipos jurídicos: lee los documentos de un expediente 
 ## La forma más simple: usar la aplicación
 
 1. Descarga el paquete de la última versión publicada:
-   - **Windows:** [LectorDeDocumentos-windows.zip](https://github.com/iustamedica-png/lectura-documentos/releases/latest/download/LectorDeDocumentos-windows.zip)
-   - **Linux:** [LectorDeDocumentos-linux.zip](https://github.com/iustamedica-png/lectura-documentos/releases/latest/download/LectorDeDocumentos-linux.zip)
+   - **Windows:** [LectorDeDocumentos-windows.zip](https://github.com/Iustamedica/lectura-documentos/releases/latest/download/LectorDeDocumentos-windows.zip)
+   - **Linux:** [LectorDeDocumentos-linux.zip](https://github.com/Iustamedica/lectura-documentos/releases/latest/download/LectorDeDocumentos-linux.zip)
 2. Descomprime el ZIP en una carpeta (por ejemplo, el Escritorio).
 3. Doble clic en **`Lector de documentos`** (o `Lector de documentos.exe`).
 4. Elige la carpeta del expediente, marca el tipo de documentos y presiona **Procesar documentos**.
@@ -182,5 +182,5 @@ workflow `.github/workflows/empaquetar.yml` genera los ZIP de Windows y Linux y
 los adjunta a la Release; ese enlace es el que se comparte con los abogados:
 
 ```
-https://github.com/iustamedica-png/lectura-documentos/releases/latest/download/LectorDeDocumentos-windows.zip
+https://github.com/Iustamedica/lectura-documentos/releases/latest/download/LectorDeDocumentos-windows.zip
 ```
