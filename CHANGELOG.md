@@ -3,6 +3,25 @@
 Todas las versiones relevantes del proyecto. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.6.0] — 2026-11
+
+### Agregado
+- **Naturaleza de la fuente**: cada documento se clasifica como `expediente`,
+  `jurisprudencia`, `resolucion` (acto administrativo), `doctrina` o `documento`.
+- Clasificador con negativos y marcadores editoriales (ISSN, DOI, ISBN, tesis,
+  primera edición) para no confundir doctrina con jurisprudencia citada.
+- Árbol de salida por fuente: `01-expedientes/`, `02-jurisprudencia/`,
+  `03-resoluciones-administrativas/`, `04-doctrina/`, `05-documentos/`.
+- Tipos nuevos: Libro, Capítulo, Artículo de revista, Tesis, Publicación,
+  Sentencia CS/CA/TC, Resolución administrativa, Dictamen, Sanción y Sumario.
+- Columna **Fuente** en el índice CSV/Word y chip `Fuente: …` en el revisor.
+- Resumen “Por fuente” en el informe y campos críticos propios (doctrina no exige
+  ROL; jurisprudencia exige tribunal y fecha).
+
+### Cambiado
+- Las carpetas de salida ahora tienen dos niveles cuando corresponde
+  (`01-expedientes/01-escritos`, `05-documentos/02-comprobantes`).
+
 ## [0.5.1] — 2026-11
 
 ### Agregado

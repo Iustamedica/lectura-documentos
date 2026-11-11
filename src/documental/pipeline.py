@@ -170,6 +170,12 @@ def process_page(
     documents: list[Document] = []
     for index, block in enumerate(blocks, start=1):
         familia, confianza, text = _block_family(block, perfil)
+        resultado_naturaleza = perfil.clasificar_naturaleza(text)
+        if resultado_naturaleza is None:
+            naturaleza, naturaleza_confianza = "documento", CONF_BAJA
+        else:
+            naturaleza = resultado_naturaleza.familia
+            naturaleza_confianza = resultado_naturaleza.confianza
         doc_id = f"{path.stem[:28]}-p{page.page}-{index}"
 
         if familia == "comprobante_pago":
@@ -186,6 +192,8 @@ def process_page(
             index_in_page=index,
             familia=familia,
             familia_confianza=confianza,
+            naturaleza=naturaleza,
+            naturaleza_confianza=naturaleza_confianza,
             texto_ocr=text,
         )
         try:

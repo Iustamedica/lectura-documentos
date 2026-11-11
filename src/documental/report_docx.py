@@ -291,6 +291,23 @@ def _build_category_summary(doc: DocxDocument, expediente: Expediente, perfil) -
         cells[1].text = categoria.carpeta
         cells[2].text = str(total)
 
+    # Resumen por naturaleza de la fuente (v0.6).
+    conteo_fuente: dict[str, int] = {}
+    for item in expediente.documentos:
+        clave = getattr(item, "naturaleza", "documento")
+        conteo_fuente[clave] = conteo_fuente.get(clave, 0) + 1
+    if conteo_fuente:
+        resumen = doc.add_paragraph()
+        resumen.add_run("Por fuente: ").bold = True
+        resumen.add_run(
+            ", ".join(
+                f"{perfil.etiqueta_naturaleza(clave)} ({total})"
+                for clave, total in sorted(
+                    conteo_fuente.items(), key=lambda par: -par[1]
+                )
+            )
+        )
+
     doc.add_paragraph()
 
 
@@ -309,7 +326,7 @@ def _build_index_table(
         )
     else:
         headers = (
-            "N", "Tipo de documento", "ROL / RIT", "Tribunal", "Caratula", "Fecha", "Parte", "Estado",
+            "N", "Fuente", "Tipo de documento", "ROL / RIT", "Tribunal", "Caratula", "Fecha", "Parte", "Estado",
         )
     table = doc.add_table(rows=1, cols=len(headers))
     table.style = "Table Grid"
@@ -338,6 +355,7 @@ def _build_index_table(
         else:
             values = (
                 str(number),
+                perfil.etiqueta_naturaleza(getattr(item, "naturaleza", "documento")),
                 item.tipo_documento.value or perfil.tipo_canonico(item),
                 _valor(item, "rol") or "-",
                 _valor(item, "tribunal") or "-",

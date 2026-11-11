@@ -24,7 +24,7 @@ PDF / fotos
 |---|---|---|
 | Motor | `ingesta.py`, `ocr.py`, `sinocr.py`, `layout.py`, `compilar.py`, `revisor.py`, `normalizers.py` | Leer, rasterizar, OCR, líneas/bloques, PDF final, revisor HTML, RUT/fechas/montos. |
 | Modelo | `models.py`, `individualizacion.py`, `titulares.py` | `Field` con confianza, `Document`, `Expediente`, agrupación y numeración. |
-| Perfiles | `perfiles/` | Catálogo, clasificación, extracción, campos críticos, informe. |
+| Perfiles | `perfiles/` | Catálogo, clasificación, **naturaleza de la fuente**, extracción, campos críticos, informe. |
 | Salidas | `organizar.py`, `report_docx.py` | Carpetas por categoría, índice, Word. |
 | Interfaces | `cli.py`, `gui.py` | Línea de comandos y mini app de escritorio. |
 
@@ -44,6 +44,7 @@ src/documental/
     legal/
       catalogo.py      # categorías, tipos, campos, extracción
       clasificacion.py # familias con palabras clave y negativos
+      naturaleza.py    # fuente: expediente, jurisprudencia, resolución...
       extractores.py
 tests/            # 222 pruebas
 empaquetar/       # PyInstaller + scripts de build
@@ -67,6 +68,23 @@ Resolución del perfil en la CLI, en orden:
 
 El perfil usado se guarda en el JSON, de modo que `informe`, `ordenar` y
 `compilar` no necesitan repetir la bandera.
+
+### 3.1 Naturaleza de la fuente
+
+Además de la familia funcional, `naturaleza.py` clasifica la **fuente** con
+puntajes y negativos: `expediente` (ROL/RIT, “en lo principal”), `jurisprudencia`
+(Corte Suprema, “considerando”), `resolucion` (resolución exenta, dictamen,
+sumario), `doctrina` (ISSN/DOI/ISBN, tesis, edición) y `documento` (boleta,
+factura, contrato, carta).
+
+El resultado se guarda en `Document.naturaleza` y `naturaleza_confianza`, se
+expone en el revisor (`Fuente: …`), en la columna `naturaleza` del índice y
+determina el primer nivel del árbol de salida:
+
+```
+01-expedientes/  02-jurisprudencia/  03-resoluciones-administrativas/
+04-doctrina/     05-documentos/
+```
 
 ## 4. Comandos
 

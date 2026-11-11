@@ -121,6 +121,14 @@ class Perfil:
         """Corrige la familia con reglas propias del perfil."""
         return familia
 
+    def clasificar_naturaleza(self, texto: str):
+        """Naturaleza de la fuente (None si el perfil no la distingue)."""
+        return None
+
+    def etiqueta_naturaleza(self, naturaleza: str) -> str:
+        """Nombre legible de la naturaleza de la fuente."""
+        return naturaleza
+
     def extractor(self, familia: str) -> Callable[..., Any]:
         """Extractor de la familia detectada."""
         raise NotImplementedError

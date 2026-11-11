@@ -311,6 +311,11 @@ class Grupo:
         return self._perfil.categoria_de_tipo(self._perfil.tipo_de_grupo(self.documentos))
 
     @property
+    def naturaleza(self) -> str:
+        """Naturaleza de la fuente, con su etiqueta legible."""
+        return self._perfil.etiqueta_naturaleza(self.primero.naturaleza)
+
+    @property
     def detalle(self) -> str:
         """Elementos propios de la categoria (prestador, detalle de compra...)."""
         for documento in self.documentos:
@@ -399,6 +404,7 @@ def filas(grupos: list[Grupo]) -> list[dict[str, str]]:
             {
                 "N": str(grupo.numero),
                 "categoria": grupo._perfil.etiqueta(grupo.categoria),
+                "naturaleza": grupo.naturaleza,
                 "tipo": grupo.tipo,
                 "fecha": grupo.fecha_texto,
                 "emisor": grupo.valor("emisor_nombre"),

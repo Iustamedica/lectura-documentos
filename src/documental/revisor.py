@@ -52,6 +52,7 @@ def generar_revisor(
         criticos_doc = perfil.criticos_de(doc)
         doc_dict["criticos"] = list(criticos_doc)
         doc_dict["confianza"] = doc.confianza_global(criticos_doc)
+        doc_dict["naturaleza_etiqueta"] = perfil.etiqueta_naturaleza(doc.naturaleza)
         # Los campos del perfil se exponen planos para que el revisor los
         # muestre y los exporte igual que los campos comunes.
         for nombre, campo in (doc_dict.get("extra") or {}).items():

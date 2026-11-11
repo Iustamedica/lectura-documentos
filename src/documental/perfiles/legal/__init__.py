@@ -4,6 +4,7 @@ from .catalogo import CAMPOS, CATEGORIAS, CAT_OTROS, T_SIN_CLASIFICAR
 from .catalogo import categoria_de_tipo, criticos_para_tipo, detalle_de, refinar, tipo_canonico
 from .clasificacion import clasificar
 from .extractores import extract_legal
+from . import naturaleza
 
 from ..base import Perfil
 
@@ -48,6 +49,12 @@ class PerfilLegal(Perfil):
     def clasificar(self, texto: str):
         return clasificar(texto)
 
+    def clasificar_naturaleza(self, texto: str):
+        return naturaleza.clasificar(texto)
+
+    def etiqueta_naturaleza(self, clave: str) -> str:
+        return naturaleza.etiqueta(clave)
+
     def extractor(self, familia: str):
         return extract_legal
 
@@ -78,6 +85,7 @@ class PerfilLegal(Perfil):
         return (
             ("N", "N"),
             ("categoria", "Grupo"),
+            ("naturaleza", "Fuente"),
             ("tipo", "Documento"),
             ("fecha", "Fecha"),
             ("rol", "ROL / RIT"),

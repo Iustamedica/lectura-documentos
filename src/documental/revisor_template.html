@@ -108,7 +108,8 @@ function render() {
     card.innerHTML =
       '<h2>' + (indice + 1) + '. ' + escapar(titulo) + ' ' + badge(doc.confianza || 'media') +
       ' <span class="stat">' + escapar(doc.source_file) + ' p.' + doc.page + '</span></h2>' +
-      '<div class="meta">Familia: ' + escapar(doc.familia) + ' | id: ' + escapar(doc.doc_id) + '</div>';
+      '<div class="meta">Fuente: ' + escapar(doc.naturaleza_etiqueta || doc.naturaleza || 'documento') +
+      ' | Familia: ' + escapar(doc.familia) + ' | id: ' + escapar(doc.doc_id) + '</div>';
     const tabla = document.createElement('table');
     const criticos = Array.isArray(doc.criticos) && doc.criticos.length ? doc.criticos : CRITICOS;
     for (const nombre of CAMPOS) {

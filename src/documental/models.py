@@ -139,6 +139,10 @@ class Document:
     index_in_page: int
     familia: str = "desconocido"
     familia_confianza: str = CONF_BAJA
+    # Naturaleza de la fuente: expediente, jurisprudencia, resolucion,
+    # doctrina o documento (la define el perfil; en salud queda "documento").
+    naturaleza: str = "documento"
+    naturaleza_confianza: str = CONF_BAJA
     titulo: str = ""
 
     tipo_documento: Field = field(default_factory=Field)
@@ -216,6 +220,8 @@ class Document:
             "index_in_page": self.index_in_page,
             "familia": self.familia,
             "familia_confianza": self.familia_confianza,
+            "naturaleza": self.naturaleza,
+            "naturaleza_confianza": self.naturaleza_confianza,
             "titulo": self.titulo,
             "texto_ocr": self.texto_ocr,
             "imagen": self.imagen,
@@ -235,6 +241,8 @@ class Document:
             index_in_page=data.get("index_in_page", 1),
             familia=data.get("familia", "desconocido"),
             familia_confianza=data.get("familia_confianza", CONF_BAJA),
+            naturaleza=data.get("naturaleza", "documento"),
+            naturaleza_confianza=data.get("naturaleza_confianza", CONF_BAJA),
             titulo=data.get("titulo", ""),
             texto_ocr=data.get("texto_ocr", ""),
             imagen=data.get("imagen", ""),
@@ -250,8 +258,8 @@ class Document:
         # Se recogen aqui para que las correcciones sobrevivan al JSON.
         meta = {
             "doc_id", "source_file", "page", "index_in_page", "familia",
-            "familia_confianza", "titulo", "texto_ocr", "imagen", "items",
-            "extra", "confianza",
+            "familia_confianza", "naturaleza", "naturaleza_confianza",
+            "titulo", "texto_ocr", "imagen", "items", "extra", "confianza",
         }
         for name, value in data.items():
             if name in meta or name in DOCUMENT_FIELD_NAMES:

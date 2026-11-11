@@ -43,7 +43,9 @@ def test_perfil_legal_expone_su_catalogo():
     assert perfil.nombre == "legal"
     assert perfil.clave_otros == catalogo.CAT_OTROS
     assert perfil.etiqueta(catalogo.CAT_ESCRITOS) == "Escritos"
-    assert perfil.carpeta(catalogo.CAT_RESOLUCIONES) == "02-resoluciones"
+    assert perfil.carpeta(catalogo.CAT_RESOLUCIONES) == (
+        "01-expedientes/02-resoluciones-judiciales"
+    )
     assert "rol" in perfil.campos_criticos()
 
 

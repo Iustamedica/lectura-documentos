@@ -8,12 +8,12 @@ Pensado para abogados y equipos jurídicos: lee los documentos de un expediente 
 
 ## Qué hace
 - Lee **fotos (JPG/PNG) y PDF** de una carpeta.
-- **Clasifica** cada documento en una categoría judicial (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, informes, otros).
+- **Clasifica** cada documento por **fuente** (expediente, jurisprudencia, resolución administrativa, doctrina o documento) y por categoría judicial (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, informes).
 - **Extrae** ROL/RIT, tribunal, carátula, partes, fechas, folios, notaría, abogados y montos.
 - Genera:
   - **`Revision.html`** — borrador editable para revisar y corregir.
   - **`Informe.docx`** — informe en Word con portada, resumen por categoría, índice y fichas por documento.
-  - (opcional) **PDFs ordenados por categoría**, índice y comprimidos para el Poder Judicial.
+  - (opcional) **PDFs ordenados por fuente y categoría**, índice y comprimidos para el Poder Judicial.
 
 ## La forma más simple: usar la aplicación
 
@@ -55,7 +55,7 @@ El paquete pesa alrededor de 200 MB (incluye el motor de OCR y sus modelos).
 |---|---|
 | `Resultados/Revision.html` | Abrir en el navegador para **revisar y corregir** los datos. |
 | `Resultados/Informe.docx` | El **informe Word** (portada con ROL y carátula). |
-| `Resultados/Documentos/` | PDFs **ordenados por categoría** e índices (si usas comprimir/ordenar). |
+| `Resultados/Documentos/` | PDFs **ordenados por fuente y categoría** e índices (si usas comprimir/ordenar). |
 | `Resultados/expediente.json` | Datos crudos (soporte técnico). |
 | `Resultados/Registro.txt` | Resumen del proceso (útil si algo falla). |
 

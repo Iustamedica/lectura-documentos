@@ -12,6 +12,7 @@ from datetime import date
 from ...models import CONF_BAJA, CONF_MEDIA, Document, Field
 from ...normalizers import fold, format_date_cl, parse_clp, parse_date
 from ..base import CampoDef, Categoria
+from .naturaleza import DOCTRINA, JURISPRUDENCIA, RESOLUCION
 
 # ---------------------------------------------------------------------------
 # Categorias (cada una es una carpeta de la salida ordenada)
@@ -23,17 +24,31 @@ CAT_CONTRATOS = "contratos"
 CAT_COMPROBANTES = "comprobantes"
 CAT_PODERES = "poderes_certificados"
 CAT_INFORMES = "informes"
+CAT_JURISPRUDENCIA = "jurisprudencia"
+CAT_RESOLUCIONES_ADMIN = "resoluciones_administrativas"
+CAT_DOCTRINA = "doctrina"
 CAT_OTROS = "otros"
 
 CATEGORIAS: tuple[Categoria, ...] = (
-    Categoria(CAT_ESCRITOS, "Escritos", "01-escritos"),
-    Categoria(CAT_RESOLUCIONES, "Resoluciones", "02-resoluciones"),
-    Categoria(CAT_NOTIFICACIONES, "Notificaciones", "03-notificaciones"),
-    Categoria(CAT_CONTRATOS, "Contratos", "04-contratos"),
-    Categoria(CAT_COMPROBANTES, "Comprobantes de pago", "05-comprobantes"),
-    Categoria(CAT_PODERES, "Poderes y certificados", "06-poderes-certificados"),
-    Categoria(CAT_INFORMES, "Informes y peritajes", "07-informes-peritajes"),
-    Categoria(CAT_OTROS, "Otros documentos", "08-otros"),
+    Categoria(CAT_ESCRITOS, "Escritos", "01-expedientes/01-escritos"),
+    Categoria(
+        CAT_RESOLUCIONES,
+        "Resoluciones judiciales",
+        "01-expedientes/02-resoluciones-judiciales",
+    ),
+    Categoria(CAT_NOTIFICACIONES, "Notificaciones", "01-expedientes/03-notificaciones"),
+    Categoria(CAT_INFORMES, "Informes y peritajes", "01-expedientes/04-informes-peritajes"),
+    Categoria(CAT_JURISPRUDENCIA, "Jurisprudencia", "02-jurisprudencia"),
+    Categoria(
+        CAT_RESOLUCIONES_ADMIN,
+        "Resoluciones administrativas",
+        "03-resoluciones-administrativas",
+    ),
+    Categoria(CAT_DOCTRINA, "Doctrina", "04-doctrina"),
+    Categoria(CAT_CONTRATOS, "Contratos", "05-documentos/01-contratos"),
+    Categoria(CAT_COMPROBANTES, "Comprobantes de pago", "05-documentos/02-comprobantes"),
+    Categoria(CAT_PODERES, "Poderes y certificados", "05-documentos/03-poderes-certificados"),
+    Categoria(CAT_OTROS, "Otros documentos", "05-documentos/04-otros"),
 )
 
 # ---------------------------------------------------------------------------
@@ -93,6 +108,25 @@ T_ACTA_MEDIACION = "Acta de mediacion"
 T_PAGARE = "Pagare"
 T_CHEQUE = "Cheque"
 T_SIN_CLASIFICAR = "Documento sin clasificar"
+
+# Doctrina (v0.6)
+T_DOCTRINA_LIBRO = "Libro"
+T_DOCTRINA_CAPITULO = "Capitulo de libro"
+T_DOCTRINA_ARTICULO = "Articulo de revista"
+T_DOCTRINA_TESIS = "Tesis o memoria"
+T_DOCTRINA_PUBLICACION = "Publicacion de doctrina"
+
+# Jurisprudencia (v0.6)
+T_JURISPRUDENCIA = "Sentencia (jurisprudencia)"
+T_JURISPRUDENCIA_CS = "Sentencia de la Corte Suprema"
+T_JURISPRUDENCIA_CA = "Sentencia de Corte de Apelaciones"
+T_JURISPRUDENCIA_TC = "Sentencia del Tribunal Constitucional"
+
+# Actos administrativos (v0.6)
+T_RESOLUCION_ADMIN = "Resolucion administrativa"
+T_DICTAMEN = "Dictamen"
+T_SANCION = "Sancion administrativa"
+T_SUMARIO = "Sumario administrativo"
 
 
 # Penal (v0.3)
@@ -173,6 +207,19 @@ TIPOS: dict[str, str] = {
     T_CUIDADO_PERSONAL: CAT_ESCRITOS,
     T_RELACION_DIRECTA: CAT_ESCRITOS,
     T_MEDIDA_PROTECCION: CAT_RESOLUCIONES,
+    T_DOCTRINA_LIBRO: CAT_DOCTRINA,
+    T_DOCTRINA_CAPITULO: CAT_DOCTRINA,
+    T_DOCTRINA_ARTICULO: CAT_DOCTRINA,
+    T_DOCTRINA_TESIS: CAT_DOCTRINA,
+    T_DOCTRINA_PUBLICACION: CAT_DOCTRINA,
+    T_JURISPRUDENCIA: CAT_JURISPRUDENCIA,
+    T_JURISPRUDENCIA_CS: CAT_JURISPRUDENCIA,
+    T_JURISPRUDENCIA_CA: CAT_JURISPRUDENCIA,
+    T_JURISPRUDENCIA_TC: CAT_JURISPRUDENCIA,
+    T_RESOLUCION_ADMIN: CAT_RESOLUCIONES_ADMIN,
+    T_DICTAMEN: CAT_RESOLUCIONES_ADMIN,
+    T_SANCION: CAT_RESOLUCIONES_ADMIN,
+    T_SUMARIO: CAT_RESOLUCIONES_ADMIN,
 }
 
 CAMPOS: tuple[CampoDef, ...] = (
@@ -215,6 +262,9 @@ CRITICOS_POR_CATEGORIA: dict[str, tuple[str, ...]] = {
     CAT_COMPROBANTES: ("fecha_emision", "monto_total", "emisor_rut"),
     CAT_PODERES: ("fecha_emision", "notaria"),
     CAT_INFORMES: ("fecha_emision",),
+    CAT_JURISPRUDENCIA: ("tribunal", "fecha_emision"),
+    CAT_RESOLUCIONES_ADMIN: ("fecha_emision",),
+    CAT_DOCTRINA: (),
     CAT_OTROS: ("fecha_emision",),
 }
 
@@ -244,6 +294,35 @@ def tipo_canonico(documento: Document) -> str:
     texto = _texto(documento)
     cabecera = _cabecera(documento)
     familia = documento.familia
+    naturaleza = getattr(documento, "naturaleza", "")
+
+    # 0. Fuentes que no son piezas de un expediente.
+    if naturaleza == DOCTRINA:
+        if "tesis para optar" in texto or "memoria para optar" in texto:
+            return T_DOCTRINA_TESIS
+        if "capitulo" in cabecera or "capitulo de libro" in texto:
+            return T_DOCTRINA_CAPITULO
+        if "doi" in texto or "issn" in texto or "articulo" in cabecera:
+            return T_DOCTRINA_ARTICULO
+        if "isbn" in texto or "libro" in cabecera:
+            return T_DOCTRINA_LIBRO
+        return T_DOCTRINA_PUBLICACION
+    if naturaleza == JURISPRUDENCIA:
+        if "tribunal constitucional" in texto:
+            return T_JURISPRUDENCIA_TC
+        if "corte suprema" in texto:
+            return T_JURISPRUDENCIA_CS
+        if "corte de apelaciones" in texto:
+            return T_JURISPRUDENCIA_CA
+        return T_JURISPRUDENCIA
+    if naturaleza == RESOLUCION:
+        if "sumario" in texto:
+            return T_SUMARIO
+        if "dictamen" in texto or "contraloria" in texto:
+            return T_DICTAMEN
+        if "sancion" in texto or "multa" in texto:
+            return T_SANCION
+        return T_RESOLUCION_ADMIN
 
     # 1. Notificaciones (nombre propio en el encabezado).
     if "cedula de notificacion" in texto or "certifico que notifique" in texto:
@@ -604,6 +683,13 @@ def refinar(documento: Document, prestadores: tuple | None = None) -> None:
         emisor = _valor_extra(documento, "tribunal") or _valor_extra(documento, "notaria")
         if emisor:
             documento.emisor_nombre.set(emisor, CONF_MEDIA, "", "Tribunal o notaria que emite")
+
+    if documento.naturaleza == JURISPRUDENCIA and not _valor_extra(documento, "tribunal"):
+        for clave in ("corte suprema", "corte de apelaciones", "tribunal constitucional"):
+            if clave in folded:
+                _fijar(documento, "tribunal", clave.title(), CONF_MEDIA, clave,
+                       "Tribunal inferido del encabezado")
+                break
 
 
 def detalle_de(documento: Document) -> str:
