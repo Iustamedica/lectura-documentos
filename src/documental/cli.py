@@ -26,6 +26,7 @@ Flujo completo cuando los documentos llegan como fotos de celular:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -531,6 +532,82 @@ def _cmd_clasificar(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ordenar_paginas(args) -> int:
+    """Reordena un PDF por el numero impreso y muestra el mapa de paginas."""
+    from .ordenar_paginas import ordenar_pdf
+
+    origen = Path(args.pdf)
+    if not origen.is_file():
+        print(f"No existe el PDF: {origen}", file=sys.stderr)
+        return 1
+    resultado = ordenar_pdf(
+        origen, Path(args.salida) if args.salida else None, forzar=args.forzar
+    )
+    if resultado.reordenado:
+        print(f"PDF ordenado: {resultado.destino}")
+    else:
+        print(f"No se reordeno: {resultado.motivo}")
+    print("Mapa de paginas (pdf -> impresa -> nueva posicion):")
+    for fila in resultado.informe():
+        impresa = fila["numero_impreso"] if fila["numero_impreso"] is not None else "-"
+        nueva = fila["nueva_posicion"] if fila["nueva_posicion"] is not None else "-"
+        print(f"  p. {fila['pagina_pdf']:>3} -> {impresa:>4} -> {nueva:>3}")
+    if args.json:
+        destino_json = Path(args.json)
+        destino_json.parent.mkdir(parents=True, exist_ok=True)
+        destino_json.write_text(
+            json.dumps(
+                {
+                    "origen": str(origen),
+                    "destino": str(resultado.destino) if resultado.destino else "",
+                    "reordenado": resultado.reordenado,
+                    "motivo": resultado.motivo,
+                    "paginas": resultado.informe(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        print(f"Informe: {destino_json}")
+    return 0 if resultado.reordenado or not args.forzar else 1
+
+
+def _cmd_biblioteca(args) -> int:
+    """Genera la ficha bibliografica de cada PDF de una carpeta de doctrina."""
+    from .biblioteca import catalogo, escribir_catalogo
+
+    carpeta = Path(args.carpeta)
+    if not carpeta.is_dir():
+        print(f"No es una carpeta: {carpeta}", file=sys.stderr)
+        return 1
+    fichas = catalogo(
+        carpeta,
+        reordenar=args.reordenar,
+        salida=Path(args.salida) if args.salida else None,
+        renombrar=args.renombrar,
+    )
+    if not fichas:
+        print("No se encontraron PDF en la carpeta.")
+        return 1
+
+    for ficha in fichas:
+        autores = ", ".join(ficha.autores) or "(sin autor)"
+        anio = ficha.anio or "----"
+        print(f"{anio} | {ficha.tipo:12} | {autores[:38]:38} | {ficha.titulo[:60]}")
+    csv_path = escribir_catalogo(
+        fichas, Path(args.catalogo), Path(args.json) if args.json else None
+    )
+    print(f"\nTotal: {len(fichas)} PDF(s)")
+    print(f"Catalogo: {csv_path}")
+    if args.json:
+        print(f"JSON: {args.json}")
+    if args.reordenar:
+        ordenados = sum(1 for ficha in fichas if ficha.reordenado)
+        print(f"Reordenados: {ordenados} de {len(fichas)}")
+    return 0
+
+
 def _agregar_perfil(parser: argparse.ArgumentParser) -> None:
     """Agrega la opcion de perfil documental a un subcomando."""
     parser.add_argument(
@@ -759,6 +836,53 @@ def build_parser() -> argparse.ArgumentParser:
                        help="Solo la carpeta indicada, sin subcarpetas")
     _agregar_perfil(p_cla)
     p_cla.set_defaults(func=_cmd_clasificar)
+
+    p_bib = sub.add_parser(
+        "biblioteca",
+        help="Ficha bibliografica de una carpeta de doctrina (un PDF = un item)",
+        description=(
+            "Recorre una carpeta de doctrina y extrae titulo, autores, anio, tipo, "
+            "fuente, DOI e ISBN de cada PDF, sin partir el documento. Genera un "
+            "catalogo CSV/JSON y, opcionalmente, reordena las paginas por el numero "
+            "impreso. No modifica los originales."
+        ),
+    )
+    p_bib.add_argument("carpeta", help="Carpeta con los PDF de doctrina")
+    p_bib.add_argument(
+        "--catalogo", default="catalogo.csv", help="CSV de salida (por defecto catalogo.csv)"
+    )
+    p_bib.add_argument("--json", default="", help="JSON de salida (opcional)")
+    p_bib.add_argument(
+        "--reordenar", action="store_true",
+        help="Escribe un PDF nuevo con las paginas ordenadas por su numero impreso",
+    )
+    p_bib.add_argument(
+        "--salida", default="",
+        help="Carpeta para los PDF ordenados o renombrados",
+    )
+    p_bib.add_argument(
+        "--renombrar", action="store_true",
+        help="Copia cada PDF como AAAA_autor_titulo_fuente.pdf en la carpeta de salida",
+    )
+    p_bib.set_defaults(func=_cmd_biblioteca)
+
+    p_pag = sub.add_parser(
+        "ordenar-paginas",
+        help="Reordena un PDF por el numero impreso en cada pagina",
+        description=(
+            "Detecta el numero impreso en el encabezado o pie de cada pagina y "
+            "escribe un PDF nuevo en orden. Si la secuencia es ambigua no reordena "
+            "y muestra el mapa de paginas para revisar."
+        ),
+    )
+    p_pag.add_argument("pdf", help="PDF a ordenar")
+    p_pag.add_argument("-o", "--salida", default="", help="PDF de salida")
+    p_pag.add_argument(
+        "--forzar", action="store_true",
+        help="Ordena aunque haya paginas sin numero (las deja tras la anterior)",
+    )
+    p_pag.add_argument("--json", default="", help="Informe JSON del mapeo de paginas")
+    p_pag.set_defaults(func=_cmd_ordenar_paginas)
     return parser
 
 

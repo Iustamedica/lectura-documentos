@@ -36,6 +36,8 @@ src/documental/
   models.py, individualizacion.py, titulares.py
   organizar.py, report_docx.py
   cli.py, gui.py
+  biblioteca.py       # modo doctrina: ficha, catalogo, reordenado
+  ordenar_paginas.py  # detecta el numero impreso y reordena el PDF
   perfiles/
     base.py        # contrato Perfil
     registro.py    # get_perfil("salud"|"legal")
@@ -97,6 +99,8 @@ documental compilar   <json> --origen <carpeta> --pdf salidas/documentos.pdf
 documental ordenar    <json> --origen <carpeta> --destino V.1
 documental clasificar <carpeta> --csv inventario.csv
 documental expediente --carpeta <carpeta> --ordenar --comprimir
+documental biblioteca <carpeta> --catalogo catalogo.csv [--reordenar --salida dir]
+documental ordenar-paginas <pdf> -o <salida.pdf>
 ```
 
 `expediente` es el flujo completo (revisor + Word). Sin `--perfil`, resuelve
@@ -147,7 +151,19 @@ https://github.com/<usuario>/<repo>/releases/latest/download/LectorDeDocumentos-
 3. Completar la Release si hace falta.
 4. Probar el ZIP en un equipo limpio (sin Python).
 
-## 9. Licencia
+## 9. Modo biblioteca
+
+- `biblioteca.py` trata cada PDF como un ítem: extrae la ficha de la portada
+  (bloque de mayor tamaño), la página de copyright, los metadatos y el nombre del
+  archivo, y guarda la confianza de cada campo.
+- `ordenar_paginas.py` detecta el número impreso (arábigo o romano), exige que la
+  secuencia sea única y continua, y escribe un PDF nuevo. Si no puede, devuelve el
+  mapa `página_pdf → número_impreso` sin tocar el original.
+- Los PDF sin capa de texto se marcan `requiere OCR`: no se inventan metadatos.
+- La taxonomía de materias (civil, penal, familia, etc.) queda para una versión
+  posterior; hoy el catálogo guarda la ficha bibliográfica y el tipo documental.
+
+## 10. Licencia
 
 PolyForm Internal Use 1.0.0 (ver [LICENSE](LICENSE)): uso interno gratuito, sin
 distribución ni reventa. Las contribuciones se licencian igual

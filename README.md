@@ -117,6 +117,26 @@ Para distribuir el software o acordar otro tipo de licencia, contacta al autor d
 
 ---
 
+## Modo biblioteca (doctrina)
+
+Para catalogar libros, artículos, tesis y papers **sin partir el PDF** (un PDF =
+un ítem):
+
+```bash
+documental biblioteca "Mi biblioteca" --catalogo catalogo.csv --json catalogo.json
+documental biblioteca "Mi biblioteca" --reordenar --salida ordenados
+documental ordenar-paginas libro.pdf -o libro-ordenado.pdf
+```
+
+- Extrae **título, autores, año, tipo, fuente, DOI, ISBN, idioma y páginas**.
+- `--reordenar` escribe un **PDF nuevo** con las páginas en orden según el número
+  impreso; `--salida` indica la carpeta.
+- `--renombrar` copia cada PDF como `AAAA_autor_titulo_fuente.pdf`.
+- Nunca modifica los originales. Los campos dudosos quedan con confianza baja
+  para revisar.
+- Los PDF sin capa de texto se marcan para OCR (el orden de páginas necesita
+  texto legible).
+
 ## Para desarrolladores
 Visión general (arquitectura, perfiles, estructura, pruebas y empaquetado): **[DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md)**.
 Detalle del motor y del modo salud: **[DOCUMENTACION-MOTOR-Y-SALUD.md](DOCUMENTACION-MOTOR-Y-SALUD.md)**.

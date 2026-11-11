@@ -3,6 +3,22 @@
 Todas las versiones relevantes del proyecto. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.7.0] — 2026-11
+
+### Agregado
+- **Modo biblioteca** (`documental biblioteca`): un PDF = un ítem; extrae título,
+  autores, año, tipo, fuente, DOI, ISBN, idioma y páginas, y genera catálogo
+  CSV/JSON con confianza por campo.
+- **`documental ordenar-paginas`**: detecta el número impreso (arábigo o romano),
+  valida la secuencia y escribe un PDF nuevo en orden; si es ambiguo, entrega el
+  mapa de páginas sin tocar el original.
+- `--reordenar`, `--salida` y `--renombrar` en el modo biblioteca.
+
+### Limitaciones
+- Los PDF sin capa de texto se marcan para OCR y no reciben ficha inventada.
+- La taxonomía de materias (civil, penal, familia…) queda para una versión
+  posterior.
+
 ## [0.6.0] — 2026-11
 
 ### Agregado
