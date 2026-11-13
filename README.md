@@ -2,7 +2,7 @@
 
 **Convierte fotos y PDF de un expediente en un borrador editable y un informe Word, en tu propio computador y sin subir nada a internet.**
 
-Pensado para abogados y equipos jurídicos: lee los documentos de un expediente (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, certificados, informes y peritajes), extrae los datos de identificación (ROL/RIT, tribunal, carátula, partes, fechas, montos) y deja una **primera versión que se revisa y se corrige**, más un **informe en Word**. Todo corre **local**.
+Pensado para abogados y equipos jurídicos: lee los documentos de un expediente (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, certificados, informes y peritajes), extrae los datos de identificación (ROL/RIT, tribunal, carátula, partes, fechas, montos) y deja una **primera versión que se revisa y se corrige** en un html que se abre en el navegador, más un **informe en Word**. Todo corre **local**.
 
 > ⚖️ **La herramienta asiste, no reemplaza la revisión del abogado.** Revise siempre el borrador y el informe antes de usarlos.
 
@@ -15,7 +15,7 @@ Pensado para abogados y equipos jurídicos: lee los documentos de un expediente 
   - **`Informe.docx`** — informe en Word con portada, resumen por categoría, índice y fichas por documento.
   - (opcional) **PDFs ordenados por fuente y categoría**, índice y comprimidos para el Poder Judicial.
 
-## La forma más simple: usar la aplicación
+## Cómo se usa
 
 1. Descarga el paquete de la última versión publicada:
    - **Windows:** [LectorDeDocumentos-windows.zip](https://github.com/Iustamedica/lectura-documentos/releases/latest/download/LectorDeDocumentos-windows.zip)
@@ -25,18 +25,19 @@ Pensado para abogados y equipos jurídicos: lee los documentos de un expediente 
 4. Elige la carpeta del expediente, marca el tipo de documentos y presiona **Procesar documentos**.
 5. Al terminar, abre **`Resultados/Revision.html`** para revisar y corregir los datos.
 
-No hace falta instalar Python, usar la terminal ni saber navegar GitHub.
 La primera vez puede tardar unos segundos en abrir; después funciona sin conexión.
 El paquete pesa alrededor de 200 MB (incluye el motor de OCR y sus modelos).
 
-> Si el enlace aún no tiene archivos (versión recién publicada), usa la instalación desde el código que aparece más abajo.
+Se puede instalar también desde el terminal conforme a las instrucciones más abajo.
 
 > **Aviso de Windows:** el programa no está firmado digitalmente. Si aparece
 > "Windows protegió tu PC", haz clic en **Más información → Ejecutar de todas
 > formas**. Es normal en programas sin firma comercial. Algunos antivirus
 > pueden marcarlo como sospechoso (falso positivo de los empaquetados).
 
-## Instalación desde el código (opcional, para informática)
+El programa trabaja **dentro de la carpeta que eliges**: ahí crea `1. Documentos a procesar/` y `Resultados/` (con el HTML, el JSON, el Word y, si corresponde, los PDF ordenados). Tus archivos originales **no se mueven ni se borran**.
+
+## Instalación por terminal y código (opcional, para personas más técnicas)
 
 **1) Instalar (una sola vez)**
 - **Windows:** doble clic en `instalar.bat`.
@@ -82,41 +83,6 @@ Para dejarlo fijo en una carpeta, crea un archivo **`perfil.txt`** con el texto 
 
 📘 Guía del modo salud: **[GUIA-MODO-SALUD.md](GUIA-MODO-SALUD.md)**.
 
-## Advertencias de calidad y tamaño
-- **Orientación:** documentos derechos y en la **misma orientación** (mejor lectura).
-- **Escrito a mano:** baja precisión; debe **revisarse especialmente**.
-- **Peso (Poder Judicial):** límite **10 MB por archivo / 30 MB total**; la herramienta avisa y hay una opción que comprime los PDF.
-
-## Privacidad
-- **Todo el procesamiento es local**; no se envía nada a internet.
-- El repositorio contiene **solo el programa**: los expedientes (nombres, RUT, datos del caso) **nunca** se suben. Detalles en [PRIVACIDAD.md](PRIVACIDAD.md).
-
-## Créditos y licencia
-
-Desarrollado en colaboración con **DeepSeek** (asistencia de IA en diseño, implementación y pruebas). La validación de los documentos y el criterio jurídico son del equipo legal.
-
-### Licencia
-
-**PolyForm Internal Use License 1.0.0** — texto completo en [LICENSE](LICENSE).
-
-En simple:
-
-- ✅ **Puedes usar la herramienta gratis dentro de tu estudio u oficina**, incluso para atender tus casos.
-- ✅ **Puedes modificarla** para uso interno.
-- ❌ **No puedes distribuirla, revenderla ni integrarla en un producto o servicio que ofrezcas a terceros.**
-
-Para distribuir el software o acordar otro tipo de licencia, contacta al autor del proyecto.
-
-> Esta es una licencia *source-available* (código disponible), no una licencia de código abierto aprobada por OSI.
-
-## Contacto
-
-- **Dudas, errores o mejoras:** abre un *issue* en el repositorio.
-- **Licencias comerciales, distribución o adaptaciones:** abre un *issue* con el
-  título “Licencia comercial” o escribe a: _(completar correo de contacto)_.
-
----
-
 ## Modo biblioteca (doctrina)
 
 Para catalogar libros, artículos, tesis y papers **sin partir el PDF** (un PDF =
@@ -140,6 +106,39 @@ documental ordenar-paginas libro.pdf -o libro-ordenado.pdf
   para revisar.
 - Los PDF sin capa de texto se marcan para OCR (el orden de páginas necesita
   texto legible).
+
+## Advertencias de calidad y tamaño
+- **Orientación:** documentos derechos y en la **misma orientación** (mejor lectura).
+- **Escrito a mano:** baja precisión; debe **revisarse especialmente**.
+- **Peso (Poder Judicial):** límite **10 MB por archivo / 30 MB total**; la herramienta avisa y hay una opción que comprime los PDF.
+
+## Privacidad
+- **Todo el procesamiento es local**; no se envía nada a internet.
+- El repositorio contiene **solo el programa**: los expedientes (nombres, RUT, datos del caso) **nunca** se suben. Detalles en [PRIVACIDAD.md](PRIVACIDAD.md).
+
+## Créditos y licencia
+
+Desarrollado en colaboración con **DeepSeek V4.1** (asistencia de IA en mejoras al diseño, implementación y pruebas). La validación de los documentos y el criterio jurídico son **siempre** del equipo legal.
+
+### Licencia
+
+**PolyForm Internal Use License 1.0.0** — texto completo en [LICENSE](LICENSE).
+
+Qué permite la licencia:
+
+- ✅ **Puedes usar la herramienta gratis dentro de tu estudio u oficina**, incluso para atender tus casos.
+- ✅ **Puedes modificarla** para uso interno.
+- ❌ **No puedes distribuirla, revenderla ni integrarla en un producto o servicio que ofrezcas a terceros.**
+
+Para distribuir el software o acordar otro tipo de licencia, contacta al autor del proyecto.
+
+> Esta es una licencia *source-available* (código disponible), no una licencia de código abierto aprobada por OSI.
+
+## Contacto
+
+- **Dudas, errores o mejoras:** abre un *issue* en el repositorio.
+- **Licencias comerciales, distribución o adaptaciones:** abre un *issue* con el
+  título “Licencia comercial” o escribe a: contacto@iustamedica.cl
 
 ## Para desarrolladores
 Visión general (arquitectura, perfiles, estructura, pruebas y empaquetado): **[DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md)**.
