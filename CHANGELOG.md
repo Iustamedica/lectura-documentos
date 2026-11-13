@@ -3,6 +3,22 @@
 Todas las versiones relevantes del proyecto. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.7.1] — 2026-11
+
+### Corregido
+- **La doctrina ya no se parte en varios documentos**: un PDF de doctrina se
+  conserva como un solo ítem con todas sus páginas (`Document.paginas`), de modo
+  que 5 textos completos producen 5 fichas y no decenas.
+- La doctrina se detecta **antes del OCR** leyendo la capa de texto; los libros
+  escaneados en carpetas `Doctrina`/`Biblioteca`/`Tesis`/`Articulos` se
+  individualizan sin OCR-ear cientos de páginas.
+- `--sin-dividir` fuerza “un PDF = un documento” en `expediente` y `procesar`.
+- El refinador judicial ya no inventa ROL/tribunal en doctrina (falso
+  “tribunal de tesis”).
+- Una lista vacía de campos críticos ya no marca el documento como “faltante”:
+  la doctrina queda con confianza alta.
+- El índice muestra el rango completo de páginas (`pp. 1-324`) y el año.
+
 ## [0.7.0] — 2026-11
 
 ### Agregado

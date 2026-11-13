@@ -156,6 +156,11 @@ https://github.com/<usuario>/<repo>/releases/latest/download/LectorDeDocumentos-
 - `biblioteca.py` trata cada PDF como un ítem: extrae la ficha de la portada
   (bloque de mayor tamaño), la página de copyright, los metadatos y el nombre del
   archivo, y guarda la confianza de cada campo.
+- En el pipeline de expedientes, la doctrina se detecta **antes del OCR** (capa de
+  texto) o por el nombre de la carpeta (`Doctrina`, `Biblioteca`, `Tesis`,
+  `Articulos`). Se guarda como un solo `Document` con todas sus páginas
+  (`Document.paginas`), no se divide por hoja y no se OCR-ea un libro completo
+  solo para individualizarlo. `--sin-dividir` lo fuerza para cualquier PDF.
 - `ordenar_paginas.py` detecta el número impreso (arábigo o romano), exige que la
   secuencia sea única y continua, y escribe un PDF nuevo. Si no puede, devuelve el
   mapa `página_pdf → número_impreso` sin tocar el original.

@@ -19,14 +19,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+import pymupdf
+
 from .classify import FARMACIA, classify
 from .extractors import get_extractor
 from .extractors.otros import extract_clinico, extract_receta_manuscrita
 from .layout import Block, build_lines, split_blocks
-from .models import CONF_BAJA, CONF_FALTA, CONF_MEDIA, Document
+from .models import CONF_ALTA, CONF_BAJA, CONF_FALTA, CONF_MEDIA, Document, Field
 from .normalizers import fold, parse_clp
 from .ocr import TARGET_HEIGHT, OCREngine, PageOCR, ocr_pages
-from .perfiles import Perfil, get_perfil
+from .perfiles import Perfil, get_perfil, resolver_perfil
 from .titulares import TitularConfig, resolve_expediente
 
 # Marcadores que indican el inicio de un documento dentro de una hoja.
@@ -66,6 +68,9 @@ class PipelineOptions:
     # celular de ~12 MP: acota el uso de memoria, aunque la ganancia de
     # velocidad es pequena (~10 %) porque RapidOCR normaliza el tamano interno.
     target_height: int = TARGET_HEIGHT
+    # Un PDF completo (libro, articulo, tesis) es UN documento: no se parte por
+    # paginas. Se activa solo para doctrina o cuando el usuario lo pide.
+    un_documento_por_pdf: bool = False
 
 
 def _is_noise(block: Block) -> bool:
@@ -125,6 +130,160 @@ def _crop_block(page: PageOCR, block: Block, dest: Path) -> str:
     return dest.name
 
 
+def _texto_de_paginas(pages: list[PageOCR], limite: int = 6) -> str:
+    """Texto de las primeras paginas, suficiente para reconocer la fuente."""
+    return "\n".join(page.text for page in pages[:limite])
+
+
+def es_texto_completo(
+    pages: list[PageOCR], perfil: Perfil, options: PipelineOptions
+) -> bool:
+    """True si el archivo es una obra completa que no debe partirse por hoja.
+
+    La doctrina (libros, articulos, tesis) se procesa como **un solo documento**:
+    partirla por paginas genera decenas de fichas falsas. Los expedientes y los
+    escaneos sin texto siguen el flujo normal. ``un_documento_por_pdf`` permite
+    forzarlo para cualquier PDF (por ejemplo, jurisprudencia completa).
+    """
+    if options.un_documento_por_pdf:
+        return True
+    if len(pages) < 2:
+        return False
+    texto = _texto_de_paginas(pages)
+    if len(texto.strip()) < 300:
+        return False
+    resultado = perfil.clasificar_naturaleza(texto)
+    return (
+        resultado is not None
+        and resultado.familia == "doctrina"
+        and resultado.confianza in {CONF_ALTA, CONF_MEDIA}
+    )
+
+
+def _texto_pdf(path: Path, limite: int | None = 6) -> str:
+    """Texto de la capa del PDF, sin OCR (las primeras ``limite`` paginas)."""
+    with pymupdf.open(str(path)) as doc:
+        total = doc.page_count if limite is None else min(limite, doc.page_count)
+        return "\n".join(doc[indice].get_text() for indice in range(total))
+
+
+def doctrina_en_pdf(path: Path, perfil: Perfil) -> tuple[bool, str]:
+    """Detecta doctrina leyendo solo la capa de texto (rapido, sin OCR)."""
+    if path.suffix.lower() != ".pdf":
+        return False, CONF_BAJA
+    texto = _texto_pdf(path, 6)
+    if len(texto.strip()) < 300:
+        return False, CONF_BAJA
+    resultado = perfil.clasificar_naturaleza(texto)
+    if (
+        resultado is not None
+        and resultado.familia == "doctrina"
+        and resultado.confianza in {CONF_ALTA, CONF_MEDIA}
+    ):
+        return True, resultado.confianza
+    return False, CONF_BAJA
+
+
+def _documento_completo_base(
+    path: Path,
+    texto: str,
+    numeros: list[int],
+    naturaleza_confianza: str = CONF_MEDIA,
+    naturaleza: str = "doctrina",
+    perfil: Perfil | None = None,
+) -> Document:
+    """Construye el unico ``Document`` de un texto completo, con su ficha."""
+    ficha = None
+    if path.suffix.lower() == ".pdf" and naturaleza == "doctrina":
+        try:
+            from .biblioteca import ficha_de
+
+            ficha = ficha_de(path)
+        except Exception:
+            ficha = None
+
+    titulo = (ficha.titulo if ficha else "") or path.stem
+    doc = Document(
+        doc_id=f"{path.stem[:28]}-completo",
+        source_file=path.name,
+        page=numeros[0] if numeros else 1,
+        index_in_page=1,
+        familia="otro",
+        familia_confianza=CONF_MEDIA,
+        naturaleza=naturaleza,
+        naturaleza_confianza=naturaleza_confianza,
+        titulo=titulo,
+        paginas=numeros,
+        texto_ocr=texto,
+    )
+    if ficha is not None and ficha.anio:
+        doc.fecha_emision.set(str(ficha.anio), CONF_MEDIA, ficha.fuente or "")
+        doc.extra["anio"] = Field(str(ficha.anio), CONF_MEDIA, ficha.fuente or "")
+    mensaje = (
+        "Texto completo: se conserva como un solo documento "
+        "(no se divide por paginas)."
+    )
+    if not texto.strip():
+        mensaje += " Sin capa de texto: no se aplico OCR."
+    doc.observaciones.set(mensaje, CONF_MEDIA)
+    if perfil is not None:
+        doc.tipo_documento.set(perfil.tipo_canonico(doc), CONF_MEDIA)
+    return doc
+
+
+def documento_completo(
+    path: Path,
+    pages: list[PageOCR],
+    perfil: Perfil,
+    options: PipelineOptions,
+    naturaleza_confianza: str = CONF_MEDIA,
+) -> Document:
+    """Un solo ``Document`` para todo el PDF ya renderizado/OCR."""
+    texto = "\n".join(page.text for page in pages)
+    numeros = [page.page for page in pages]
+    return _documento_completo_base(
+        path, texto, numeros, naturaleza_confianza, "doctrina", perfil
+    )
+
+
+def documento_completo_pdf(
+    path: Path,
+    naturaleza_confianza: str = CONF_MEDIA,
+    naturaleza: str = "doctrina",
+    perfil: Perfil | None = None,
+) -> Document:
+    """Un solo ``Document`` leyendo la capa de texto, **sin OCR**.
+
+    Se usa cuando la fuente ya es doctrina: no tiene sentido OCR-ear un libro
+    completo solo para individualizarlo. El texto se limita a las primeras
+    paginas para no inflar el JSON del expediente.
+    """
+    with pymupdf.open(str(path)) as doc:
+        total = doc.page_count
+    texto = _texto_pdf(path, 12)
+    if len(texto) > 200_000:
+        texto = texto[:200_000]
+    texto = texto.strip()
+    return _documento_completo_base(
+        path, texto, list(range(1, total + 1)), naturaleza_confianza, naturaleza, perfil
+    )
+
+
+def _pista_doctrina(folder: Path) -> bool:
+    """True si la carpeta se declara como biblioteca o doctrina.
+
+    Permite tratar libros escaneados (sin capa de texto) como un solo documento
+    sin OCR-ear cientos de paginas solo para individualizarlos.
+    """
+    claves = ("doctrina", "biblioteca", "libros", "tesis", "articulos", "papers")
+    base = Path(folder)
+    for parte in (base, base.parent, base.parent.parent):
+        nombre = fold(parte.name)
+        if any(clave in nombre for clave in claves):
+            return True
+    return False
+
+
 def process_pdf(
     path: Path,
     engine: OCREngine | None = None,
@@ -134,7 +293,26 @@ def process_pdf(
 ) -> list[Document]:
     """Procesa un archivo y devuelve los documentos detectados."""
     options = options or PipelineOptions()
+    if isinstance(perfil, str):
+        perfil = resolver_perfil(perfil)
+    perfil = perfil or get_perfil()
+    path = Path(path)
+
+    doctrina, confianza = doctrina_en_pdf(path, perfil)
+    if doctrina:
+        return [documento_completo_pdf(path, confianza, "doctrina", perfil)]
+    if options.un_documento_por_pdf and path.suffix.lower() == ".pdf":
+        texto = _texto_pdf(path, 6)
+        resultado = perfil.clasificar_naturaleza(texto) if texto.strip() else None
+        naturaleza = resultado.familia if resultado is not None else "documento"
+        confianza_forzada = resultado.confianza if resultado is not None else CONF_BAJA
+        return [documento_completo_pdf(path, confianza_forzada, naturaleza, perfil)]
+
     pages = ocr_pages(path, engine, dpi=options.dpi, target_height=options.target_height)
+    if es_texto_completo(pages, perfil, options):
+        resultado = perfil.clasificar_naturaleza(_texto_de_paginas(pages))
+        confianza = resultado.confianza if resultado is not None else CONF_MEDIA
+        return [documento_completo(path, pages, perfil, options, confianza)]
     documents: list[Document] = []
     for page in pages:
         documents.extend(
@@ -157,6 +335,8 @@ def process_page(
     segunda pasada (recetas manuscritas) sin volver a leer el PDF completo.
     """
     perfil = perfil or get_perfil()
+    if isinstance(perfil, str):
+        perfil = resolver_perfil(perfil)
     tokens = [t for t in page.tokens if t.score >= options.min_confidence]
     lines = build_lines(tokens)
     if not lines:
@@ -298,8 +478,11 @@ def process_folder(
     folder = Path(folder)
     engine = engine or OCREngine()
     options = options or PipelineOptions()
+    if isinstance(perfil, str):
+        perfil = resolver_perfil(perfil)
     perfil = perfil or get_perfil()
     config = titulares_config or []
+    pista_doctrina = _pista_doctrina(folder)
     candidatos = folder.rglob("*") if recursivo else folder.iterdir()
     files = sorted(
         p
@@ -312,7 +495,35 @@ def process_folder(
     paginas: dict[Path, list[PageOCR]] = {}
     documentos_por_archivo: dict[Path, list[Document]] = {}
     for path in files:
+        doctrina, confianza = doctrina_en_pdf(path, perfil)
+        if doctrina or (pista_doctrina and path.suffix.lower() == ".pdf"):
+            if not doctrina:
+                confianza = CONF_MEDIA
+            documentos_por_archivo[path] = [
+                documento_completo_pdf(path, confianza, "doctrina", perfil)
+            ]
+            paginas[path] = []
+            continue
+        if options.un_documento_por_pdf and path.suffix.lower() == ".pdf":
+            texto = _texto_pdf(path, 6)
+            resultado = perfil.clasificar_naturaleza(texto) if texto.strip() else None
+            naturaleza = resultado.familia if resultado is not None else "documento"
+            conf = resultado.confianza if resultado is not None else CONF_BAJA
+            documentos_por_archivo[path] = [
+                documento_completo_pdf(path, conf, naturaleza, perfil)
+            ]
+            paginas[path] = []
+            continue
         paginas[path] = ocr_pages(path, engine, dpi=options.dpi, target_height=options.target_height)
+        if path.suffix.lower() == ".pdf" and es_texto_completo(
+            paginas[path], perfil, options
+        ):
+            resultado = perfil.clasificar_naturaleza(_texto_de_paginas(paginas[path]))
+            confianza = resultado.confianza if resultado is not None else CONF_MEDIA
+            documentos_por_archivo[path] = [
+                documento_completo(path, paginas[path], perfil, options, confianza)
+            ]
+            continue
         acumulados: list[Document] = []
         for page in paginas[path]:
             acumulados.extend(

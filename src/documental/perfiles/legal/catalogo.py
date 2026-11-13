@@ -584,6 +584,10 @@ def _fecha_de(texto: str) -> date | None:
 
 def refinar(documento: Document, prestadores: tuple | None = None) -> None:
     """Completa ROL, tribunal, partes y demas datos leyendolos del texto OCR."""
+    # La doctrina no es una pieza del expediente: buscar "tribunal" o "ROL" en
+    # un libro solo produce falsos positivos (p. ej. "tribunal de tesis").
+    if documento.naturaleza == "doctrina":
+        return
     texto = documento.texto_ocr or ""
     if not texto.strip():
         return
@@ -695,6 +699,10 @@ def refinar(documento: Document, prestadores: tuple | None = None) -> None:
 def detalle_de(documento: Document) -> str:
     """Frase corta y citable con los elementos que el escrito necesita."""
     partes: list[str] = []
+    if documento.naturaleza == "doctrina":
+        anio = _valor_extra(documento, "anio")
+        if anio:
+            partes.append(f"año: {anio}")
     for nombre, etiqueta in (
         ("rol", "ROL"),
         ("tribunal", "tribunal"),

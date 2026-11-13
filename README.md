@@ -129,6 +129,10 @@ documental ordenar-paginas libro.pdf -o libro-ordenado.pdf
 ```
 
 - Extrae **título, autores, año, tipo, fuente, DOI, ISBN, idioma y páginas**.
+- En el flujo `expediente`, si detecta doctrina (o la carpeta se llama
+  `Doctrina`, `Biblioteca`, `Tesis`…), cada PDF se conserva como **un solo
+  documento** y no se OCR-ea completo; `--sin-dividir` lo fuerza para cualquier
+  PDF.
 - `--reordenar` escribe un **PDF nuevo** con las páginas en orden según el número
   impreso; `--salida` indica la carpeta.
 - `--renombrar` copia cada PDF como `AAAA_autor_titulo_fuente.pdf`.

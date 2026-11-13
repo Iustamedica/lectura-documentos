@@ -154,6 +154,9 @@ tiene ROL y una notificación no tiene monto.
 ## Individualización
 
 - Una hoja es un documento; se separa solo si hay **folios distintos**.
+- La **doctrina** (libro, artículo, tesis) es un solo documento: un PDF = un
+  ítem. No se separa por páginas, no se le exige ROL y no se OCR-ea completo si
+  ya trae capa de texto. `--sin-dividir` fuerza este modo para cualquier PDF.
 - Se unen hojas consecutivas del mismo archivo, misma categoría, mismo tipo y
   sin conflicto de **folio ni ROL**.
 - Orden cronológico por fecha; sin fecha legible, al final.

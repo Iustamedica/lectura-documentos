@@ -267,7 +267,10 @@ class Grupo:
 
     @property
     def paginas(self) -> list[int]:
-        return sorted({doc.page for doc in self.documentos})
+        numeros: set[int] = set()
+        for documento in self.documentos:
+            numeros.update(documento.paginas or [documento.page])
+        return sorted(numeros)
 
     @property
     def paginas_texto(self) -> str:

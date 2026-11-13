@@ -286,6 +286,7 @@ def _cmd_procesar(args: argparse.Namespace) -> int:
         dpi=args.dpi,
         min_confidence=args.min_confidence,
         target_height=args.target_height,
+        un_documento_por_pdf=getattr(args, "sin_dividir", False),
     )
     print(f"Procesando {carpeta} (OCR local, puede tardar unos segundos por pagina)...")
     expediente = process_folder(
@@ -414,6 +415,7 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
         dpi=300,
         min_confidence=0.35,
         target_height=TARGET_HEIGHT,
+        un_documento_por_pdf=getattr(args, "sin_dividir", False),
     )
 
     print("Paso 1 de 3: leyendo documentos (OCR local; puede tardar unos segundos por pagina)...")
@@ -681,6 +683,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Recorre tambien las subcarpetas (expedientes organizados en carpetas)",
     )
     _agregar_perfil(p_proc)
+    p_proc.add_argument(
+        "--sin-dividir", action="store_true", dest="sin_dividir",
+        help="Trata cada PDF como un solo documento (textos completos)",
+    )
     p_proc.set_defaults(func=_cmd_procesar)
 
     p_rev = sub.add_parser("revisor", help="Genera revisor HTML desde un expediente JSON")
@@ -816,6 +822,10 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Calidad JPEG al comprimir, 0-100 (por defecto {CALIDAD_JPEG})",
     )
     _agregar_perfil(p_exp)
+    p_exp.add_argument(
+        "--sin-dividir", action="store_true", dest="sin_dividir",
+        help="Trata cada PDF como un solo documento (textos completos)",
+    )
     p_exp.set_defaults(func=_cmd_expediente)
 
     p_cla = sub.add_parser(

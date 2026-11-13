@@ -144,6 +144,9 @@ class Document:
     naturaleza: str = "documento"
     naturaleza_confianza: str = CONF_BAJA
     titulo: str = ""
+    # Todas las paginas cuando el archivo es un texto completo (un solo
+    # documento). Vacio significa que el documento ocupa solo ``page``.
+    paginas: list[int] = field(default_factory=list)
 
     tipo_documento: Field = field(default_factory=Field)
     folio: Field = field(default_factory=Field)
@@ -196,8 +199,11 @@ class Document:
 
     def confianza_global(self, criticos: tuple[str, ...] | None = None) -> str:
         """Peor confianza entre los campos criticos del documento."""
+        nombres = CRITICAL_FIELD_NAMES if criticos is None else criticos
+        if not nombres:
+            return CONF_ALTA
         worst = CONF_ALTA
-        for name in criticos or CRITICAL_FIELD_NAMES:
+        for name in nombres:
             actual = self.field(name).confidence
             if CONFIDENCE_ORDER.get(actual, 9) > CONFIDENCE_ORDER[worst]:
                 worst = actual
@@ -205,9 +211,10 @@ class Document:
 
     def campos_a_revisar(self, criticos: tuple[str, ...] | None = None) -> list[str]:
         """Campos criticos vacios o de baja confianza (alimenta el semaforo)."""
+        nombres = CRITICAL_FIELD_NAMES if criticos is None else criticos
         return [
             name
-            for name in (criticos or CRITICAL_FIELD_NAMES)
+            for name in nombres
             if CONFIDENCE_ORDER.get(self.field(name).confidence, 9)
             >= CONFIDENCE_ORDER[CONF_BAJA]
         ]
@@ -223,6 +230,7 @@ class Document:
             "naturaleza": self.naturaleza,
             "naturaleza_confianza": self.naturaleza_confianza,
             "titulo": self.titulo,
+            "paginas": list(self.paginas),
             "texto_ocr": self.texto_ocr,
             "imagen": self.imagen,
             "items": [item.to_dict() for item in self.items],
@@ -244,6 +252,7 @@ class Document:
             naturaleza=data.get("naturaleza", "documento"),
             naturaleza_confianza=data.get("naturaleza_confianza", CONF_BAJA),
             titulo=data.get("titulo", ""),
+            paginas=list(data.get("paginas") or []),
             texto_ocr=data.get("texto_ocr", ""),
             imagen=data.get("imagen", ""),
         )
@@ -259,7 +268,8 @@ class Document:
         meta = {
             "doc_id", "source_file", "page", "index_in_page", "familia",
             "familia_confianza", "naturaleza", "naturaleza_confianza",
-            "titulo", "texto_ocr", "imagen", "items", "extra", "confianza",
+            "titulo", "paginas", "texto_ocr", "imagen", "items", "extra",
+            "confianza",
         }
         for name, value in data.items():
             if name in meta or name in DOCUMENT_FIELD_NAMES:
