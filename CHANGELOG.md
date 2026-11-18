@@ -3,6 +3,41 @@
 Todas las versiones relevantes del proyecto. Formato basado en
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [0.8.0] — 2026-11
+
+### Agregado
+- **Cuatro modalidades documentales** en la aplicación y en la línea de comandos:
+  **judicial**, **doctrina**, **jurisprudencia** y **actos administrativos**. El
+  usuario elige la modalidad al abrir el programa.
+- **Detección por nombre de carpeta**: `Doctrina`, `Jurisprudencia`, `Actos
+  administrativos` o `Expediente` preseleccionan la modalidad; también se puede
+  fijar en `perfil.txt` o con `--perfil`.
+- Nuevos catálogos y campos: doctrina (autores, año, DOI, ISBN, idioma, páginas),
+  jurisprudencia (ROL, tribunal, sala, carátula, resultado) y actos
+  administrativos (institución, número, materia, destinatario).
+- Subcomandos `documental doctrina`, `documental jurisprudencia` y
+  `documental actos`; `documental procesar --perfil …` sigue siendo el comando
+  genérico.
+- En modalidad judicial se puede elegir si la doctrina y la jurisprudencia van a
+  **carpetas propias** o **juntas** al resto (`--anexos separar|juntos`).
+- **[TERCEROS.md](TERCEROS.md)**: declaración del motor de OCR (RapidOCR 3.10.0,
+  modelos PP-OCRv6 en ONNX, ONNX Runtime 1.31.0, PyMuPDF 2.0), versiones,
+  licencias y fuentes.
+
+### Cambiado
+- La modalidad **judicial** reemplaza al antiguo perfil `legal` (el alias `legal`
+  se mantiene).
+- **Salud deja de ser una modalidad visible**: sus casos se reparten entre las
+  cuatro modalidades nuevas.
+- Los PDF de jurisprudencia y actos administrativos se conservan completos y, si
+  son escaneos, se OCR-ean solo las primeras páginas como muestra.
+- La ventana recuerda la modalidad detectada por la carpeta y el botón **Abrir
+  resultados** abre directamente `Revision.html`.
+
+### Corregido
+- Los campos de cada modalidad se exportan al CSV y al informe Word, incluidos
+  autores, ROL y número de resolución.
+
 ## [0.7.1] — 2026-11
 
 ### Corregido

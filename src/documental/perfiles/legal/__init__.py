@@ -1,19 +1,45 @@
-"""Perfil legal: expedientes judiciales (civil y laboral)."""
+"""Modalidad judicial: expedientes (civil, laboral, penal y familia)."""
 
 from .catalogo import CAMPOS, CATEGORIAS, CAT_OTROS, T_SIN_CLASIFICAR
 from .catalogo import categoria_de_tipo, criticos_para_tipo, detalle_de, refinar, tipo_canonico
 from .clasificacion import clasificar
 from .extractores import extract_legal
+from . import catalogo as _catalogo
 from . import naturaleza
 
 from ..base import Perfil
 
 
 class PerfilLegal(Perfil):
-    nombre = "legal"
+    nombre = "judicial"
+    titulo_modalidad = "Judicial"
     descripcion = (
-        "Escritos, resoluciones, notificaciones y prueba de un expediente judicial."
+        "Escritos, resoluciones, notificaciones, contratos, boletas, garantias, "
+        "cheques y prueba de un expediente judicial."
     )
+
+    pistas_carpeta = (
+        "judicial",
+        "expediente",
+        "escritos",
+        "resoluciones",
+        "notificaciones",
+        "contratos",
+        "boletas",
+        "garantias",
+        "cheques",
+    )
+    pistas_documento_completo = (
+        "doctrina",
+        "biblioteca",
+        "libros",
+        "tesis",
+        "articulos",
+        "papers",
+    )
+    un_documento_por_pdf = False
+    paginas_muestra_ocr = 0
+    naturaleza_por_defecto = "documento"
 
     categorias = CATEGORIAS
     campos = CAMPOS
@@ -62,7 +88,14 @@ class PerfilLegal(Perfil):
         return tipo_canonico(documento)
 
     def categoria_de_tipo(self, tipo: str) -> str:
-        return categoria_de_tipo(tipo)
+        clave = categoria_de_tipo(tipo)
+        if self.anexos_juntos and clave in {
+            _catalogo.CAT_JURISPRUDENCIA,
+            _catalogo.CAT_RESOLUCIONES_ADMIN,
+            _catalogo.CAT_DOCTRINA,
+        }:
+            return _catalogo.CAT_OTROS
+        return clave
 
     def detalle_de(self, documento) -> str:
         return detalle_de(documento)

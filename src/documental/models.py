@@ -140,7 +140,7 @@ class Document:
     familia: str = "desconocido"
     familia_confianza: str = CONF_BAJA
     # Naturaleza de la fuente: expediente, jurisprudencia, resolucion,
-    # doctrina o documento (la define el perfil; en salud queda "documento").
+    # doctrina o documento (la define la modalidad activa).
     naturaleza: str = "documento"
     naturaleza_confianza: str = CONF_BAJA
     titulo: str = ""

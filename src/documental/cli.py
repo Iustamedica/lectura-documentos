@@ -369,8 +369,12 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     """
     from datetime import datetime
 
+    import copy
+
     base = Path(args.carpeta)
     perfil = resolver_perfil(getattr(args, "perfil", None), base)
+    perfil = copy.copy(perfil)
+    perfil.anexos_juntos = getattr(args, "anexos", "separar") == "juntos"
     base.mkdir(parents=True, exist_ok=True)
     entrada = base / "1. Documentos a procesar"
     resultados = base / "Resultados"
@@ -379,12 +383,7 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
 
     guia = entrada / "LEEME - aqui van los documentos.txt"
     if not guia.exists():
-        guia.write_text(
-            "Coloque en esta carpeta TODAS las fotos (JPG/PNG) y PDF del expediente.\n"
-            "Pueden ser muchos archivos. Idealmente, escaneos derechos y legibles.\n"
-            "Luego ejecute 'Procesar documentos' (doble clic).\n",
-            encoding="utf-8",
-        )
+        guia.write_text(perfil.texto_guia(), encoding="utf-8")
 
     sufijos = {".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff"}
     archivos = [p for p in entrada.iterdir() if p.is_file() and p.suffix.lower() in sufijos]
@@ -419,7 +418,7 @@ def _cmd_expediente(args: argparse.Namespace) -> int:
     )
 
     print("Paso 1 de 3: leyendo documentos (OCR local; puede tardar unos segundos por pagina)...")
-    print(f"   Perfil: {perfil.nombre}")
+    print(f"   Modalidad: {perfil.titulo_modalidad or perfil.nombre}")
     expediente = process_folder(
         entrada_real, options=options, titulares_config=titulares, recursivo=True,
         perfil=perfil,
@@ -611,14 +610,15 @@ def _cmd_biblioteca(args) -> int:
 
 
 def _agregar_perfil(parser: argparse.ArgumentParser) -> None:
-    """Agrega la opcion de perfil documental a un subcomando."""
+    """Agrega la opcion de modalidad documental a un subcomando."""
     parser.add_argument(
         "--perfil",
         default=None,
-        choices=("salud", "legal"),
+        choices=("judicial", "legal", "doctrina", "jurisprudencia", "administrativo", "actos"),
         help=(
-            "Perfil documental. Por defecto 'legal'; se usa 'salud' si la carpeta "
-            "tiene perfil.txt o caso.json, o si se indica aqui."
+            "Modalidad documental: judicial (por defecto), doctrina, "
+            "jurisprudencia o administrativo. Tambien se puede declarar en "
+            "perfil.txt o deducir del nombre de la carpeta."
         ),
     )
 
@@ -826,7 +826,50 @@ def build_parser() -> argparse.ArgumentParser:
         "--sin-dividir", action="store_true", dest="sin_dividir",
         help="Trata cada PDF como un solo documento (textos completos)",
     )
+    p_exp.add_argument(
+        "--anexos", choices=("separar", "juntos"), default="separar",
+        help=(
+            "En modalidad judicial: guardar doctrina y jurisprudencia en carpetas "
+            "propias (separar) o junto al resto de los documentos (juntos)"
+        ),
+    )
     p_exp.set_defaults(func=_cmd_expediente)
+
+    for _nombre, _ayuda in (
+        ("doctrina", "Procesa una biblioteca: un PDF = un libro, articulo o tesis"),
+        ("jurisprudencia", "Procesa sentencias: un PDF = un fallo"),
+        ("actos", "Procesa actos administrativos: un PDF = una resolucion o dictamen"),
+    ):
+        p_mod = sub.add_parser(_nombre, help=_ayuda)
+        p_mod.add_argument(
+            "--carpeta", default=".",
+            help="Carpeta de trabajo donde estan los documentos",
+        )
+        p_mod.add_argument("--caso", default="", help="Archivo caso.json (opcional)")
+        p_mod.add_argument(
+            "--ordenar", action="store_true",
+            help="Ademas, agrupa los documentos por categoria en Resultados/Documentos",
+        )
+        p_mod.add_argument("--abrir", action="store_true", help="Abre los resultados al terminar")
+        p_mod.add_argument("--comprimir", action="store_true", help="Reduce el peso de los PDF")
+        p_mod.add_argument(
+            "--dpi", type=int, default=DPI_COMPRESION,
+            help=f"DPI objetivo al comprimir (por defecto {DPI_COMPRESION})",
+        )
+        p_mod.add_argument(
+            "--calidad", type=int, default=CALIDAD_JPEG,
+            help=f"Calidad JPEG al comprimir (por defecto {CALIDAD_JPEG})",
+        )
+        p_mod.add_argument(
+            "--sin-dividir", action="store_true", dest="sin_dividir",
+            help="Trata cada PDF como un solo documento",
+        )
+        p_mod.add_argument(
+            "--anexos", choices=("separar", "juntos"), default="separar",
+            help="Solo aplica a la modalidad judicial",
+        )
+        _agregar_perfil(p_mod)
+        p_mod.set_defaults(func=_cmd_expediente, perfil=_nombre)
 
     p_cla = sub.add_parser(
         "clasificar",

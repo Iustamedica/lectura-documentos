@@ -31,8 +31,8 @@ set PYTHONPATH=src
 
 - **Pruebas**: agrega o ajusta tests en `tests/`. La suite debe quedar verde.
 - **Sin datos reales**: usa nombres, RUT y montos ficticios.
-- **Compatibilidad**: no cambies el comportamiento del perfil `salud` salvo que
-  el issue lo pida; es el flujo histórico.
+- **Compatibilidad**: mantén el alias `legal` → `judicial` y el comportamiento de
+  las cuatro modalidades; si cambias un catálogo, actualiza sus tests.
 - **Estilo**: Python 3.10+, tipado cuando aporta claridad, comentarios en español
   y funciones pequeñas.
 - **Dependencias**: evita agregar bibliotecas nuevas si la estándar alcanza.

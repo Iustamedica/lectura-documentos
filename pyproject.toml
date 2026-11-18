@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "documental"
-version = "0.7.1"
-description = "Lector local de documentos judiciales (OCR) con mini app de escritorio, perfiles legal y salud, e informe Word."
+version = "0.8.0"
+description = "Lector local de documentos legales (OCR) con cuatro modalidades: judicial, doctrina, jurisprudencia y actos administrativos."
 authors = [{ name = "Iustamedica (desarrollo en colaboracion con DeepSeek)" }]
 license = { text = "PolyForm Internal Use License 1.0.0" }
 requires-python = ">=3.10"

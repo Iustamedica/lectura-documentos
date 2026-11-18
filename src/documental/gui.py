@@ -1,7 +1,8 @@
 """Mini app de escritorio para usar la herramienta sin terminal ni GitHub.
 
-Doble clic, se elige la carpeta del expediente, el modo (judicial o salud) y se
-presiona "Procesar". El OCR y el informe corren en este mismo computador.
+Doble clic, se elige la carpeta de trabajo y la modalidad (judicial, doctrina,
+jurisprudencia o actos administrativos) y se presiona "Procesar". El OCR y el
+informe corren en este mismo computador.
 """
 
 from __future__ import annotations
@@ -76,7 +77,7 @@ class Ventana:
 
         fila = ttk.Frame(marco)
         fila.pack(fill="x")
-        ttk.Label(fila, text="Carpeta del expediente:").pack(side="left")
+        ttk.Label(fila, text="Carpeta de trabajo:").pack(side="left")
         self.var_carpeta = tk.StringVar(value=str(_carpeta_inicial()))
         ttk.Entry(fila, textvariable=self.var_carpeta).pack(
             side="left", fill="x", expand=True, padx=8
@@ -87,25 +88,42 @@ class Ventana:
 
         modo = ttk.LabelFrame(marco, text="Tipo de documentos", padding=10)
         modo.pack(fill="x", pady=12)
-        self.var_perfil = tk.StringVar(value="legal")
-        ttk.Radiobutton(
-            modo,
-            text="Judicial (escritos, resoluciones, contratos, prueba)",
-            variable=self.var_perfil,
-            value="legal",
-        ).pack(anchor="w")
-        ttk.Radiobutton(
-            modo,
-            text="Salud (bonos, fichas, recetas, boletas)",
-            variable=self.var_perfil,
-            value="salud",
-        ).pack(anchor="w")
+        self.var_perfil = tk.StringVar(value="judicial")
+        self.modalidades = (
+            ("judicial", "Judicial: escritos, resoluciones, contratos, boletas y prueba."),
+            ("doctrina", "Doctrina: libros, articulos, tesis y papers."),
+            ("jurisprudencia", "Jurisprudencia: sentencias de los tribunales."),
+            (
+                "administrativo",
+                "Actos administrativos: Contraloria, Superintendencia, ministerios.",
+            ),
+        )
+        for clave, texto in self.modalidades:
+            ttk.Radiobutton(
+                modo,
+                text=texto,
+                variable=self.var_perfil,
+                value=clave,
+                command=self._cambiar_modalidad,
+            ).pack(anchor="w")
+
+        self.lbl_descripcion = ttk.Label(
+            marco, text="", foreground="#444444", wraplength=760, justify="left"
+        )
+        self.lbl_descripcion.pack(anchor="w")
 
         self.var_ordenar = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             marco,
             text="Ademas, ordenar por categoria y comprimir para el Poder Judicial",
             variable=self.var_ordenar,
+        ).pack(anchor="w")
+
+        self.var_anexos = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            marco,
+            text="Guardar doctrina y jurisprudencia en carpetas propias",
+            variable=self.var_anexos,
         ).pack(anchor="w")
 
         acciones = ttk.Frame(marco)
@@ -146,22 +164,32 @@ class Ventana:
             foreground="#666666",
         ).pack(anchor="w", pady=(8, 0))
 
-        self._actualizar_modo()
-        self.var_carpeta.trace_add("write", lambda *_: self._actualizar_modo())
+        self._detectar_modalidad()
+        self.var_carpeta.trace_add("write", lambda *_: self._detectar_modalidad())
 
     # ------------------------------------------------------------------
-    def _actualizar_modo(self) -> None:
-        """Preselecciona salud si la carpeta ya es de ese flujo."""
-        from .perfiles.config import perfil_de_carpeta
+    def _cambiar_modalidad(self) -> None:
+        """Actualiza la descripcion de la modalidad elegida."""
+        from .perfiles import get_perfil
 
-        detectado = perfil_de_carpeta(self.var_carpeta.get())
-        if detectado in ("salud", "legal"):
-            self.var_perfil.set(detectado)
+        perfil = get_perfil(self.var_perfil.get())
+        self.lbl_descripcion.configure(text=perfil.descripcion)
+
+    def _detectar_modalidad(self) -> None:
+        """Preselecciona la modalidad declarada por la carpeta o perfil.txt."""
+        from .perfiles import get_perfil
+        from .perfiles.config import modalidad_de_carpeta, perfil_de_carpeta
+
+        ruta = self.var_carpeta.get()
+        detectada = perfil_de_carpeta(ruta) or modalidad_de_carpeta(ruta)
+        if detectada:
+            self.var_perfil.set(get_perfil(detectada).nombre)
+        self._cambiar_modalidad()
 
     def elegir_carpeta(self) -> None:
         elegida = self.filedialog.askdirectory(
             initialdir=self.var_carpeta.get() or str(Path.home()),
-            title="Elija la carpeta del expediente",
+            title="Elija la carpeta de trabajo",
         )
         if elegida:
             self.var_carpeta.set(elegida)
@@ -197,6 +225,8 @@ class Ventana:
         ]
         if self.var_ordenar.get():
             argumentos += ["--ordenar", "--comprimir"]
+        if not self.var_anexos.get():
+            argumentos += ["--anexos", "juntos"]
 
         self.procesando = False
         self._lanzar(argumentos)
@@ -308,6 +338,12 @@ class Ventana:
                 "Sin resultados", "Todavia no hay una carpeta de resultados."
             )
             return
+        revision = self.resultados / "Revision.html"
+        if revision.exists():
+            import webbrowser
+
+            if webbrowser.open(revision.as_uri()):
+                return
         try:
             if sys.platform.startswith("win"):
                 os.startfile(str(self.resultados))  # type: ignore[attr-defined]

@@ -403,8 +403,7 @@ def filas(grupos: list[Grupo]) -> list[dict[str, str]]:
     resultado: list[dict[str, str]] = []
     for grupo in grupos:
         monto = grupo.valor("monto_total")
-        resultado.append(
-            {
+        fila = {
                 "N": str(grupo.numero),
                 "categoria": grupo._perfil.etiqueta(grupo.categoria),
                 "naturaleza": grupo.naturaleza,
@@ -427,8 +426,15 @@ def filas(grupos: list[Grupo]) -> list[dict[str, str]]:
                 "pagina": grupo.paginas_texto,
                 "confianza": grupo.confianza,
                 "etiqueta": grupo.etiqueta,
+        }
+        fila["titulo"] = grupo.primero.titulo
+        fila.update(
+            {
+                campo.nombre: grupo.valor(campo.nombre)
+                for campo in grupo._perfil.campos
             }
         )
+        resultado.append(fila)
     return resultado
 
 

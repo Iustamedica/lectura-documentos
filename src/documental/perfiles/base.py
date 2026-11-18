@@ -33,9 +33,15 @@ class CampoDef:
 
 
 class Perfil:
-    """Catalogo y reglas de un dominio documental."""
+    """Catalogo y reglas de un dominio documental.
+
+    Cada modalidad declara, ademas del catalogo, como se detecta por el nombre
+    de la carpeta, si el PDF es un documento unico y cuantas paginas se OCR-ean
+    como muestra cuando el archivo no trae capa de texto.
+    """
 
     nombre: str = ""
+    titulo_modalidad: str = ""
     descripcion: str = ""
 
     categorias: tuple[Categoria, ...] = ()
@@ -53,6 +59,21 @@ class Perfil:
     etiqueta_titular: str = "Titular"
     usa_titulares: bool = True
     usa_prestadores: bool = False
+
+    # -- Modalidad ------------------------------------------------------
+    # Nombres de carpeta que sugieren esta modalidad (sin tildes, minusculas).
+    pistas_carpeta: tuple[str, ...] = ()
+    # Nombres de carpeta que, dentro de un expediente, fuerzan un documento
+    # completo por PDF (por ejemplo, una carpeta "Doctrina" en modo judicial).
+    pistas_documento_completo: tuple[str, ...] = ()
+    # Si cada PDF es un documento (doctrina, jurisprudencia, actos).
+    un_documento_por_pdf: bool = False
+    # Si no hay capa de texto, cuantas paginas se OCR-ean solo como muestra.
+    paginas_muestra_ocr: int = 0
+    # Naturaleza que asigna la modalidad a cada documento.
+    naturaleza_por_defecto: str = "documento"
+    # En modo judicial: guardar doctrina/jurisprudencia en carpetas propias.
+    anexos_juntos: bool = False
 
     # ------------------------------------------------------------------
     # Catalogo
@@ -165,6 +186,23 @@ class Perfil:
     def refinar(self, documento: Document, prestadores: tuple | None = None) -> None:
         """Completa los datos que falten leyendolos del texto OCR ya guardado."""
         return None
+
+    def enriquecer_completo(self, documento: Document, path) -> None:
+        """Completa la ficha de un PDF tratado como documento completo.
+
+        Se llama solo en las modalidades que conservan el PDF entero (doctrina,
+        jurisprudencia, actos administrativos). El perfil de doctrina lo usa
+        para leer titulo, autores, ano, DOI e ISBN desde la portada.
+        """
+        return None
+
+    def texto_guia(self) -> str:
+        """Instruccion que se deja en la carpeta de entrada."""
+        return (
+            "Coloque en esta carpeta TODAS las fotos (JPG/PNG) y PDF del expediente.\n"
+            "Pueden ser muchos archivos. Idealmente, escaneos derechos y legibles.\n"
+            "Luego ejecute 'Procesar documentos' (doble clic).\n"
+        )
 
     # ------------------------------------------------------------------
     # Individualizacion

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from documental import categorias
 from documental.cli import build_parser
 from documental.individualizacion import agrupar, filas
 from documental.models import Document, Expediente, Field
@@ -40,7 +39,7 @@ def test_categorias_unicas_y_tipos_validos():
 
 def test_perfil_legal_expone_su_catalogo():
     perfil = get_perfil("legal")
-    assert perfil.nombre == "legal"
+    assert perfil.nombre == "judicial"
     assert perfil.clave_otros == catalogo.CAT_OTROS
     assert perfil.etiqueta(catalogo.CAT_ESCRITOS) == "Escritos"
     assert perfil.carpeta(catalogo.CAT_RESOLUCIONES) == (
@@ -49,10 +48,9 @@ def test_perfil_legal_expone_su_catalogo():
     assert "rol" in perfil.campos_criticos()
 
 
-def test_perfil_interno_por_defecto_es_salud():
-    # El motor conserva salud como valor interno por compatibilidad; la CLI
-    # publica resuelve legal por defecto (ver pruebas del resolver).
-    assert get_perfil().nombre == "salud"
+def test_perfil_interno_por_defecto_es_judicial():
+    # El motor usa la modalidad judicial cuando nadie indica otra.
+    assert get_perfil().nombre == "judicial"
 
 
 # ---------------------------------------------------------------------------
@@ -162,72 +160,68 @@ def test_filas_incluyen_rol_y_tribunal():
 
 
 # ---------------------------------------------------------------------------
-# Regresion: el perfil salud conserva el comportamiento historico
+# Modalidades retiradas: salud ya no se ofrece en la interfaz publica
 # ---------------------------------------------------------------------------
 
-def test_salud_conserva_tipo_canonico_historico():
-    perfil = get_perfil("salud")
-    doc = _doc("BONO DE ATENCION FONASA\nPrestacion: consulta\nCopago $ 5.000",
-               familia="documento_clinico")
-    assert perfil.tipo_canonico(doc) == categorias.tipo_canonico(doc)
-
-
-def test_salud_conserva_identificadores():
-    perfil = get_perfil("salud")
-    doc = _doc("BONO DE ATENCION", familia="bono_fonasa")
-    doc.folio.set("123", "alta")
-    doc.titular_rut.set("12.345.678-5", "alta")
-    ids = perfil.identificadores(doc)
-    assert ids["folio"] == "123"
-    assert ids["rut"] == "12345678"
 
 
 # ---------------------------------------------------------------------------
 # Linea de comandos
 # ---------------------------------------------------------------------------
 
-def test_cli_acepta_perfil_legal_y_por_defecto_legal():
+def test_cli_acepta_las_cuatro_modalidades():
     parser = build_parser()
-    assert parser.parse_args(["expediente", "--perfil", "legal"]).perfil == "legal"
-    assert parser.parse_args(["expediente", "--perfil", "salud"]).perfil == "salud"
-    # Sin bandera, la CLI resuelve el perfil (legal por defecto).
+    assert parser.parse_args(["expediente", "--perfil", "judicial"]).perfil == "judicial"
+    assert parser.parse_args(["expediente", "--perfil", "doctrina"]).perfil == "doctrina"
+    assert (
+        parser.parse_args(["procesar", "carpeta", "--perfil", "jurisprudencia"]).perfil
+        == "jurisprudencia"
+    )
+    assert (
+        parser.parse_args(["procesar", "carpeta", "--perfil", "administrativo"]).perfil
+        == "administrativo"
+    )
+    assert parser.parse_args(["jurisprudencia"]).perfil == "jurisprudencia"
+    assert parser.parse_args(["actos"]).perfil == "actos"
+    # Sin bandera, la CLI resuelve la modalidad (judicial por defecto).
     assert parser.parse_args(["expediente"]).perfil is None
     assert parser.parse_args(["clasificar", "carpeta"]).perfil is None
 
 
 # ---------------------------------------------------------------------------
-# Resolucion del perfil (legal publico por defecto, salud local)
+# Resolucion de la modalidad (judicial por defecto, alias y carpetas)
 # ---------------------------------------------------------------------------
 
-def test_resolver_usa_legal_por_defecto(tmp_path):
-    assert resolver_perfil(None, tmp_path).nombre == "legal"
+def test_resolver_usa_judicial_por_defecto(tmp_path):
+    assert resolver_perfil(None, tmp_path).nombre == "judicial"
 
 
 def test_resolver_lee_perfil_txt(tmp_path):
-    (tmp_path / "perfil.txt").write_text("salud\n", encoding="utf-8")
-    assert resolver_perfil(None, tmp_path).nombre == "salud"
+    (tmp_path / "perfil.txt").write_text("doctrina\n", encoding="utf-8")
+    assert resolver_perfil(None, tmp_path).nombre == "doctrina"
 
 
-def test_resolver_caso_json_implica_salud(tmp_path):
-    (tmp_path / "caso.json").write_text("[]", encoding="utf-8")
-    assert resolver_perfil(None, tmp_path).nombre == "salud"
+def test_resolver_deduce_modalidad_por_carpeta(tmp_path):
+    carpeta = tmp_path / "Jurisprudencia" / "2024"
+    carpeta.mkdir(parents=True)
+    assert resolver_perfil(None, carpeta).nombre == "jurisprudencia"
 
 
 def test_resolver_explicito_gana_sobre_perfil_txt(tmp_path):
-    (tmp_path / "perfil.txt").write_text("salud\n", encoding="utf-8")
-    assert resolver_perfil("legal", tmp_path).nombre == "legal"
+    (tmp_path / "perfil.txt").write_text("doctrina\n", encoding="utf-8")
+    assert resolver_perfil("judicial", tmp_path).nombre == "judicial"
 
 
 def test_resolver_variable_de_entorno(tmp_path, monkeypatch):
-    monkeypatch.setenv("DOCUMENTAL_PERFIL", "salud")
-    assert resolver_perfil(None, tmp_path).nombre == "salud"
+    monkeypatch.setenv("DOCUMENTAL_PERFIL", "actos")
+    assert resolver_perfil(None, tmp_path).nombre == "administrativo"
 
 
 def test_expediente_guarda_el_perfil():
-    expediente = Expediente(carpeta="x", generado="2025-01-01", perfil="legal")
+    expediente = Expediente(carpeta="x", generado="2025-01-01", perfil="judicial")
     datos = expediente.to_dict()
-    assert datos["perfil"] == "legal"
-    assert Expediente.from_dict(datos).perfil == "legal"
+    assert datos["perfil"] == "judicial"
+    assert Expediente.from_dict(datos).perfil == "judicial"
 
 
 # ---------------------------------------------------------------------------

@@ -1,16 +1,26 @@
-"""Perfiles documentales: que categorias, campos y extractores usa el motor.
+"""Perfiles (modalidades) documentales.
 
 Un perfil describe *que* documentos conoce el sistema y *como* se individualizan.
-El motor (OCR, layout, revisor, compilador) es comun a todos los perfiles.
+El motor (OCR, layout, revisor, compilador) es comun a todas las modalidades.
 
-Perfiles disponibles:
+Modalidades disponibles:
 
-    salud   bonos, fichas, recetas y boletas de un expediente de salud (por defecto)
-    legal   escritos, resoluciones y prueba de un expediente judicial
+    judicial          escritos, resoluciones, contratos, boletas y prueba
+    doctrina          libros, articulos, tesis y papers (un PDF = un item)
+    jurisprudencia    sentencias de la Corte Suprema, Cortes y TC
+    administrativo    resoluciones, dictamenes y oficios de organos publicos
 """
 
 from .base import CampoDef, Categoria, Perfil
-from .config import resolver_perfil
+from .config import modalidad_de_carpeta, resolver_perfil
 from .registro import PERFILES, get_perfil
 
-__all__ = ["PERFILES", "CampoDef", "Categoria", "Perfil", "get_perfil", "resolver_perfil"]
+__all__ = [
+    "PERFILES",
+    "CampoDef",
+    "Categoria",
+    "Perfil",
+    "get_perfil",
+    "modalidad_de_carpeta",
+    "resolver_perfil",
+]

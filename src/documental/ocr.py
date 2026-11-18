@@ -250,12 +250,14 @@ def ocr_pages(
     engine: OCREngine | None = None,
     dpi: int = 300,
     target_height: int = TARGET_HEIGHT,
+    max_pages: int | None = None,
 ) -> list[PageOCR]:
     """Ejecuta el pipeline sobre un archivo PDF o imagen.
 
     En PDF con capa de texto usa esa capa directamente (sin OCR); solo hace OCR
     en las paginas escaneadas (sin texto util). Las imagenes sueltas siempre
-    pasan por OCR.
+    pasan por OCR. ``max_pages`` limita el trabajo a las primeras paginas (se
+    usa para leer la portada de un escaneo sin OCR-ear el documento completo).
     """
     suffix = path.suffix.lower()
     if suffix in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}:
@@ -272,6 +274,8 @@ def ocr_pages(
     results = []
     with pymupdf.open(str(path)) as pdf:
         for index, page in enumerate(pdf, start=1):
+            if max_pages is not None and index > max_pages:
+                break
             imagen, dpi_efectivo = _render_pagina(page, dpi)
             tokens = tokens_de_texto(page, dpi_efectivo)
             if len(tokens) >= UMBRAL_PALABRAS_TEXTO:

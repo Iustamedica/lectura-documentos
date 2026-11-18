@@ -1,20 +1,23 @@
-# Perfil legal (v1)
+# Modalidad judicial (antes «perfil legal»)
 
-El motor de la herramienta es el mismo para todos los dominios. Un **perfil**
+El motor de la herramienta es el mismo para todas las modalidades. Un **perfil**
 define *qué documentos conoce*, *cómo los clasifica*, *qué datos extrae* y *cómo
-los ordena*. El perfil `salud` es el histórico (bonos, fichas, recetas); este
-documento describe el perfil `legal`.
+los ordena*. Este documento describe la modalidad **judicial**; las modalidades
+**doctrina**, **jurisprudencia** y **actos administrativos** tienen su propio
+catálogo y campos.
 
 Uso:
 
 ```bash
 documental expediente --carpeta "Mi expediente" --ordenar
+documental procesar "Carpeta con PDF" --perfil judicial
 documental clasificar "Carpeta con PDF" --csv inventario.csv
 ```
 
-El perfil **legal es el que se usa por defecto**. El modo salud se activa con
-`--perfil salud`, con `DOCUMENTAL_PERFIL=salud` o con un `perfil.txt` que
-contenga `salud` en la carpeta de trabajo.
+La modalidad **judicial es la que se usa por defecto**. Las demás se activan con
+`--perfil doctrina|jurisprudencia|administrativo`, con `DOCUMENTAL_PERFIL`, con un
+`perfil.txt` en la carpeta de trabajo o simplemente nombrando la carpeta
+`Doctrina`, `Jurisprudencia` o `Actos administrativos`.
 
 ## Alcance
 

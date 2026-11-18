@@ -228,6 +228,8 @@ def _documento_completo_base(
     doc.observaciones.set(mensaje, CONF_MEDIA)
     if perfil is not None:
         doc.tipo_documento.set(perfil.tipo_canonico(doc), CONF_MEDIA)
+        perfil.enriquecer_completo(doc, path)
+        perfil.refinar(doc)
     return doc
 
 
@@ -269,19 +271,82 @@ def documento_completo_pdf(
     )
 
 
-def _pista_doctrina(folder: Path) -> bool:
-    """True si la carpeta se declara como biblioteca o doctrina.
+def documento_completo_muestra(
+    path: Path,
+    perfil: Perfil,
+    engine: OCREngine | None = None,
+    options: PipelineOptions | None = None,
+) -> Document:
+    """Un documento completo leyendo solo una muestra con OCR.
 
-    Permite tratar libros escaneados (sin capa de texto) como un solo documento
-    sin OCR-ear cientos de paginas solo para individualizarlos.
+    Se usa en jurisprudencia y actos administrativos cuando el PDF es un
+    escaneo: alcanza con las primeras paginas para leer ROL, tribunal, numero y
+    fecha sin OCR-ear un fallo de cien paginas.
     """
-    claves = ("doctrina", "biblioteca", "libros", "tesis", "articulos", "papers")
+    options = options or PipelineOptions()
+    with pymupdf.open(str(path)) as pdf:
+        total = pdf.page_count
+    limite = max(1, perfil.paginas_muestra_ocr)
+    paginas = ocr_pages(
+        path,
+        engine,
+        dpi=options.dpi,
+        target_height=options.target_height,
+        max_pages=limite,
+    )
+    texto = "\n".join(page.text for page in paginas).strip()
+    doc = _documento_completo_base(
+        path,
+        texto,
+        list(range(1, total + 1)),
+        CONF_MEDIA,
+        perfil.naturaleza_por_defecto,
+        perfil,
+    )
+    doc.observaciones = Field(
+        f"Sin capa de texto: OCR de muestra en las primeras {limite} paginas "
+        "(el documento se conserva completo).",
+        CONF_MEDIA,
+    )
+    return doc
+
+
+def _pista_completo(folder: Path, perfil: Perfil) -> bool:
+    """True si la carpeta declara documentos completos para este perfil.
+
+    En modo judicial, una carpeta ``Doctrina`` o ``Biblioteca`` permite tratar
+    libros escaneados (sin capa de texto) como un solo documento, sin OCR-ear
+    cientos de paginas solo para individualizarlos.
+    """
+    claves = perfil.pistas_documento_completo
+    if not claves:
+        return False
     base = Path(folder)
     for parte in (base, base.parent, base.parent.parent):
         nombre = fold(parte.name)
         if any(clave in nombre for clave in claves):
             return True
     return False
+
+
+def _documento_unico(
+    path: Path,
+    perfil: Perfil,
+    engine: OCREngine | None,
+    options: PipelineOptions,
+) -> Document:
+    """Documento unico para un PDF, segun la modalidad activa."""
+    if perfil.paginas_muestra_ocr <= 0:
+        confianza = CONF_ALTA if perfil.nombre == "doctrina" else CONF_MEDIA
+        return documento_completo_pdf(
+            path, confianza, perfil.naturaleza_por_defecto, perfil
+        )
+    texto = _texto_pdf(path, 6)
+    if len(texto.strip()) >= 300:
+        return documento_completo_pdf(
+            path, CONF_MEDIA, perfil.naturaleza_por_defecto, perfil
+        )
+    return documento_completo_muestra(path, perfil, engine, options)
 
 
 def process_pdf(
@@ -297,6 +362,9 @@ def process_pdf(
         perfil = resolver_perfil(perfil)
     perfil = perfil or get_perfil()
     path = Path(path)
+
+    if path.suffix.lower() == ".pdf" and perfil.un_documento_por_pdf:
+        return [_documento_unico(path, perfil, engine, options)]
 
     doctrina, confianza = doctrina_en_pdf(path, perfil)
     if doctrina:
@@ -482,7 +550,7 @@ def process_folder(
         perfil = resolver_perfil(perfil)
     perfil = perfil or get_perfil()
     config = titulares_config or []
-    pista_doctrina = _pista_doctrina(folder)
+    pista_completo = _pista_completo(folder, perfil)
     candidatos = folder.rglob("*") if recursivo else folder.iterdir()
     files = sorted(
         p
@@ -495,8 +563,14 @@ def process_folder(
     paginas: dict[Path, list[PageOCR]] = {}
     documentos_por_archivo: dict[Path, list[Document]] = {}
     for path in files:
+        if path.suffix.lower() == ".pdf" and perfil.un_documento_por_pdf:
+            documentos_por_archivo[path] = [
+                _documento_unico(path, perfil, engine, options)
+            ]
+            paginas[path] = []
+            continue
         doctrina, confianza = doctrina_en_pdf(path, perfil)
-        if doctrina or (pista_doctrina and path.suffix.lower() == ".pdf"):
+        if doctrina or (pista_completo and path.suffix.lower() == ".pdf"):
             if not doctrina:
                 confianza = CONF_MEDIA
             documentos_por_archivo[path] = [

@@ -157,3 +157,48 @@ def test_sin_dividir_fuerza_un_documento(tmp_path):
         options=PipelineOptions(un_documento_por_pdf=True),
     )
     assert len(expediente.documentos) == 1
+
+JURISPRUDENCIA = (
+    "CORTE SUPREMA\n"
+    "Santiago, 12 de marzo de 2024\n"
+    "ROL 1234-2024\n"
+    "Sala Primera\n"
+    "Caratula: Perez con Fisco\n"
+    "Vistos y considerandos: la sentencia de la Corte de Apelaciones.\n"
+    "Se confirma la sentencia apelada en todas sus partes.\n"
+    "Resuelvo: se confirma la sentencia.\n"
+    "Notifiquese y devuelvase.\n"
+    "Redactor: Ministro Senor Perez.\n"
+    "La presente copia es fiel al original que se encuentra en el archivo.\n"
+)
+
+ACTO_ADMINISTRATIVO = (
+    "CONTRALORIA GENERAL DE LA REPUBLICA\n"
+    "RESOLUCION EXENTA N 1234\n"
+    "Santiago, 27.03.2024\n"
+    "MATERIA: Instrucciones sobre ausencias y permisos.\n"
+    "VISTOS: la ley organica y las facultades de este Organismo.\n"
+    "CONSIDERANDO: que corresponde fijar criterios de control interno.\n"
+    "RESUELVO: impartir las siguientes instrucciones de caracter general.\n"
+    "Notifiquese y publiquese en el Diario Oficial.\n"
+    "Destinatario: Senor Jefe de Servicio.\n"
+)
+
+
+def test_jurisprudencia_es_un_solo_documento(tmp_path):
+    _pdf(tmp_path / "sentensia.pdf", [JURISPRUDENCIA] * 3)
+    expediente = process_folder(tmp_path, perfil="jurisprudencia")
+    assert len(expediente.documentos) == 1
+    doc = expediente.documentos[0]
+    assert doc.paginas == [1, 2, 3]
+    assert doc.extra["rol"].value == "1234-2024"
+    assert "Corte Suprema" in doc.extra["tribunal"].value
+
+
+def test_acto_administrativo_es_un_solo_documento(tmp_path):
+    _pdf(tmp_path / "resolucion.pdf", [ACTO_ADMINISTRATIVO] * 2)
+    expediente = process_folder(tmp_path, perfil="administrativo")
+    assert len(expediente.documentos) == 1
+    doc = expediente.documentos[0]
+    assert doc.extra["numero"].value == "1234"
+    assert "Contraloria" in doc.extra["institucion"].value

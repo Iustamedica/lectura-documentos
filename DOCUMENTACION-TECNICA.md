@@ -1,9 +1,9 @@
 # Documentación técnica
 
 Visión general del repositorio para quien mantiene o adapta la herramienta.
-El detalle del motor y del modo salud está en
-[DOCUMENTACION-MOTOR-Y-SALUD.md](DOCUMENTACION-MOTOR-Y-SALUD.md); el catálogo
-judicial, en [PERFIL-LEGAL.md](PERFIL-LEGAL.md).
+El catálogo judicial está en [PERFIL-LEGAL.md](PERFIL-LEGAL.md); las demás
+modalidades se describen en la sección 3 de este documento y en el código de
+`perfiles/`.
 
 ## 1. Arquitectura
 
@@ -39,36 +39,49 @@ src/documental/
   biblioteca.py       # modo doctrina: ficha, catalogo, reordenado
   ordenar_paginas.py  # detecta el numero impreso y reordena el PDF
   perfiles/
-    base.py        # contrato Perfil
-    registro.py    # get_perfil("salud"|"legal")
-    config.py      # resolver_perfil (carpeta/JSON/entorno)
-    salud.py       # adaptador al código histórico
-    legal/
+    base.py        # contrato Perfil (modalidad, pistas, OCR de muestra)
+    registro.py    # get_perfil("judicial"|"doctrina"|"jurisprudencia"|"administrativo")
+    config.py      # resolver_perfil (explicito/carpeta/entorno/nombre)
+    legal/         # modalidad judicial
       catalogo.py      # categorías, tipos, campos, extracción
       clasificacion.py # familias con palabras clave y negativos
       naturaleza.py    # fuente: expediente, jurisprudencia, resolución...
       extractores.py
-tests/            # 222 pruebas
+    doctrina/      # ficha bibliográfica (usa biblioteca.py)
+    jurisprudencia/# ROL, tribunal, sala, fecha, resultado
+    administrativo/# institución, número, materia, destinatario
+tests/            # pruebas unitarias y de pipeline
 empaquetar/       # PyInstaller + scripts de build
-scripts/salud/    # flujo avanzado del modo salud (bash)
 ```
 
-## 3. Perfiles
+## 3. Modalidades
 
-- `salud`: bonos, fichas, recetas, boletas, certificados (código histórico).
-- `legal`: escritos, resoluciones, notificaciones, contratos, comprobantes,
-  poderes, informes; civil, laboral, penal y familia.
+- `judicial`: escritos, resoluciones, notificaciones, contratos, comprobantes,
+  boletas, garantías, cheques, poderes e informes; civil, laboral, penal y
+  familia. Es la modalidad por defecto.
+- `doctrina`: libros, artículos, tesis y papers; un PDF = un ítem.
+- `jurisprudencia`: sentencias de la Corte Suprema, Cortes de Apelaciones y
+  Tribunal Constitucional; un PDF = un fallo.
+- `administrativo`: resoluciones, dictámenes y oficios de Contraloría,
+  Superintendencias, ministerios y municipalidades; un PDF = un acto.
 
-Resolución del perfil en la CLI, en orden:
+Las cuatro comparten motor de OCR, revisor HTML e informe Word. Lo que cambia es
+el catálogo, los campos, los extractores y la forma de individualizar.
 
-1. `--perfil legal|salud`
+El perfil histórico `salud` ya no se ofrece en la interfaz; su código queda en
+`perfiles/salud.py` y en los módulos `categorias.py`/`classify.py` como referencia
+para no romper pruebas antiguas.
+
+Resolución de la modalidad en la CLI, en orden:
+
+1. `--perfil judicial|doctrina|jurisprudencia|administrativo` (alias `legal`)
 2. `DOCUMENTAL_PERFIL`
 3. `perfil.txt` en la carpeta
-4. `caso.json` en la carpeta → salud
+4. nombre de la carpeta (`Doctrina`, `Jurisprudencia`, `Actos administrativos`…)
 5. perfil guardado en el `expediente.json`
-6. **legal** por defecto
+6. **judicial** por defecto
 
-El perfil usado se guarda en el JSON, de modo que `informe`, `ordenar` y
+La modalidad usada se guarda en el JSON, de modo que `informe`, `ordenar` y
 `compilar` no necesitan repetir la bandera.
 
 ### 3.1 Naturaleza de la fuente

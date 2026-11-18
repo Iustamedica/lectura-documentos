@@ -41,6 +41,14 @@ incorporación en productos o servicios ofrecidos a terceros.
 
 ## Componentes de terceros
 
-La herramienta usa bibliotecas de código abierto (PyMuPDF, RapidOCR, ONNX
-Runtime, Pillow, python-docx), cada una con su propia licencia. Los modelos de
-OCR se distribuyen dentro del paquete RapidOCR.
+La herramienta usa bibliotecas de código abierto, cada una con su propia
+licencia: **RapidOCR 3.10.0** (Apache-2.0), modelos **PP-OCRv6 small** de
+PaddleOCR convertidos a ONNX, **ONNX Runtime 1.31.0** (MIT), **PyMuPDF 2.0**
+(AGPL-3.0 o licencia comercial), **Pillow 13.0.0** (MIT-CMU) y **python-docx
+1.2.0** (MIT). Los modelos de OCR se distribuyen dentro del paquete RapidOCR y
+no se descargan de internet.
+
+Versiones, enlaces y advertencia sobre la licencia de PyMuPDF:
+[`TERCEROS.md`](TERCEROS.md).
+
+El OCR corre **100 % local**: no se usa Tesseract ni ningún servicio en la nube.

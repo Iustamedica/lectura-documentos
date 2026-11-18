@@ -1,15 +1,15 @@
-# Lector de documentos para expedientes judiciales (OCR local)
+# Lector de documentos legales (OCR local)
 
-**Convierte fotos y PDF de un expediente en un borrador editable y un informe Word, en tu propio computador y sin subir nada a internet.**
+**Convierte fotos y PDF en un borrador editable y un informe Word, en tu propio computador y sin subir nada a internet.**
 
-Pensado para abogados y equipos jurídicos: lee los documentos de un expediente (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, certificados, informes y peritajes), extrae los datos de identificación (ROL/RIT, tribunal, carátula, partes, fechas, montos) y deja una **primera versión que se revisa y se corrige** en un html que se abre en el navegador, más un **informe en Word**. Todo corre **local**.
+Pensado para abogados y equipos jurídicos. Tiene cuatro modalidades: **judicial** (expedientes y prueba), **doctrina** (libros, artículos y tesis), **jurisprudencia** (sentencias) y **actos administrativos** (resoluciones y dictámenes). Extrae los datos de identificación de cada documento y deja una **primera versión que se revisa y se corrige** en un HTML que se abre en el navegador, más un **informe en Word**. Todo corre **local**.
 
 > ⚖️ **La herramienta asiste, no reemplaza la revisión del abogado.** Revise siempre el borrador y el informe antes de usarlos.
 
 ## Qué hace
 - Lee **fotos (JPG/PNG) y PDF** de una carpeta.
-- **Clasifica** cada documento por **fuente** (expediente, jurisprudencia, resolución administrativa, doctrina o documento) y por categoría judicial (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, informes).
-- **Extrae** ROL/RIT, tribunal, carátula, partes, fechas, folios, notaría, abogados y montos.
+- **Clasifica** cada documento según la modalidad elegida: judicial (escritos, resoluciones, notificaciones, contratos, comprobantes, poderes, informes), doctrina, jurisprudencia o acto administrativo.
+- **Extrae** los datos propios: ROL/RIT, tribunal, carátula, partes, fechas, folios, notaría, abogados y montos; o autores, año, DOI e ISBN en doctrina; o institución, número y materia en actos administrativos.
 - Genera:
   - **`Revision.html`** — borrador editable para revisar y corregir.
   - **`Informe.docx`** — informe en Word con portada, resumen por categoría, índice y fichas por documento.
@@ -22,7 +22,7 @@ Pensado para abogados y equipos jurídicos: lee los documentos de un expediente 
    - **Linux:** [LectorDeDocumentos-linux.zip](https://github.com/Iustamedica/lectura-documentos/releases/latest/download/LectorDeDocumentos-linux.zip)
 2. Descomprime el ZIP en una carpeta (por ejemplo, el Escritorio).
 3. Doble clic en **`Lector de documentos`** (o `Lector de documentos.exe`).
-4. Elige la carpeta del expediente, marca el tipo de documentos y presiona **Procesar documentos**.
+4. Elige la carpeta de trabajo, marca la **modalidad** (judicial, doctrina, jurisprudencia o actos administrativos) y presiona **Procesar documentos**.
 5. Al terminar, abre **`Resultados/Revision.html`** para revisar y corregir los datos.
 
 La primera vez puede tardar unos segundos en abrir; después funciona sin conexión.
@@ -73,39 +73,35 @@ El programa trabaja **dentro de la carpeta que eliges**: ahí crea `1. Documento
 | [SECURITY.md](SECURITY.md) | Cómo reportar vulnerabilidades. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Cómo colaborar con el proyecto. |
 | [DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md) | Arquitectura, perfiles y empaquetado (para informática). |
-| [DOCUMENTACION-MOTOR-Y-SALUD.md](DOCUMENTACION-MOTOR-Y-SALUD.md) | Detalle del motor y del modo salud. |
+| [TERCEROS.md](TERCEROS.md) | Motor de OCR, versiones, licencias y fuentes. |
 
-## Modo salud (opcional)
+## Modalidades
 
-El repositorio trabaja por defecto en modo **judicial (legal)**. Si tu trabajo es de salud (bonos, fichas, recetas, boletas), usa el acceso **`Procesar salud`** o agrega `--perfil salud`.
+Al abrir la aplicación eliges **qué tipo de documentos** vas a procesar. También puedes fijarla con `--perfil` o dejarla escrita en un archivo `perfil.txt` dentro de la carpeta.
 
-Para dejarlo fijo en una carpeta, crea un archivo **`perfil.txt`** con el texto `salud`. Si la carpeta contiene un `caso.json`, la herramienta también asume el modo salud.
+| Modalidad | Para qué | Carpetas de salida |
+|---|---|---|
+| **Judicial** | Escritos, resoluciones, notificaciones, contratos, boletas, garantías y cheques. | `01-expedientes/…`, `05-documentos/…` |
+| **Doctrina** | Libros, artículos, tesis y papers. **Un PDF = un ítem.** | `01-libros`, `02-articulos`, `03-tesis`, `04-papers`, `05-otros` |
+| **Jurisprudencia** | Sentencias de la Corte Suprema, Cortes de Apelaciones y Tribunal Constitucional. **Un PDF = un fallo.** | `01-corte-suprema`, `02-corte-apelaciones`, `03-tribunal-constitucional`, `04-tribunales-especiales`, `05-otros` |
+| **Actos administrativos** | Resoluciones, dictámenes y oficios de Contraloría, Superintendencias, ministerios y municipalidades. **Un PDF = un acto.** | `01-contraloria`, `02-superintendencia-salud`, `03-ministerios`, `04-municipalidades`, `05-otros` |
 
-📘 Guía del modo salud: **[GUIA-MODO-SALUD.md](GUIA-MODO-SALUD.md)**.
-
-## Modo biblioteca (doctrina)
-
-Para catalogar libros, artículos, tesis y papers **sin partir el PDF** (un PDF =
-un ítem):
+- La carpeta también ayuda: si se llama `Doctrina`, `Jurisprudencia`, `Actos administrativos` o `Expediente`, la modalidad se preselecciona sola.
+- En **judicial**, si aparecen documentos de doctrina o jurisprudencia, puedes elegir si se guardan en **carpetas propias** o **junto al resto** de los documentos.
+- Doctrina, jurisprudencia y actos conservan **un PDF = un documento**: no se dividen por páginas. Si un escaneo no trae capa de texto, se OCR-ean solo las primeras páginas para leer los datos de identificación.
+- La modalidad de doctrina extrae **título, autores, año, editorial o revista, DOI, ISBN, idioma y páginas**. Para el catálogo completo: `documental biblioteca "Mi biblioteca" --catalogo catalogo.csv`.
 
 ```bash
-documental biblioteca "Mi biblioteca" --catalogo catalogo.csv --json catalogo.json
-documental biblioteca "Mi biblioteca" --reordenar --salida ordenados
-documental ordenar-paginas libro.pdf -o libro-ordenado.pdf
+documental procesar "Mi carpeta" --perfil doctrina
+documental jurisprudencia --carpeta "Mis sentencias"
+documental actos --carpeta "Actos administrativos"
 ```
 
-- Extrae **título, autores, año, tipo, fuente, DOI, ISBN, idioma y páginas**.
-- En el flujo `expediente`, si detecta doctrina (o la carpeta se llama
-  `Doctrina`, `Biblioteca`, `Tesis`…), cada PDF se conserva como **un solo
-  documento** y no se OCR-ea completo; `--sin-dividir` lo fuerza para cualquier
-  PDF.
-- `--reordenar` escribe un **PDF nuevo** con las páginas en orden según el número
-  impreso; `--salida` indica la carpeta.
-- `--renombrar` copia cada PDF como `AAAA_autor_titulo_fuente.pdf`.
-- Nunca modifica los originales. Los campos dudosos quedan con confianza baja
-  para revisar.
-- Los PDF sin capa de texto se marcan para OCR (el orden de páginas necesita
-  texto legible).
+## Motor de OCR y fuentes
+
+El OCR corre **100 % local**: **RapidOCR 3.10.0** (modelos PP-OCRv6 en formato ONNX) sobre **ONNX Runtime 1.31.0**, con las páginas renderizadas por **PyMuPDF 2.0**. No se usa Tesseract ni servicios en la nube; ninguna imagen sale del equipo.
+
+Versiones exactas, licencias y enlaces de cada componente: **[TERCEROS.md](TERCEROS.md)**.
 
 ## Advertencias de calidad y tamaño
 - **Orientación:** documentos derechos y en la **misma orientación** (mejor lectura).
@@ -142,7 +138,7 @@ Para distribuir el software o acordar otro tipo de licencia, contacta al autor d
 
 ## Para desarrolladores
 Visión general (arquitectura, perfiles, estructura, pruebas y empaquetado): **[DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md)**.
-Detalle del motor y del modo salud: **[DOCUMENTACION-MOTOR-Y-SALUD.md](DOCUMENTACION-MOTOR-Y-SALUD.md)**.
+Detalle del motor de OCR y de las modalidades: **[DOCUMENTACION-TECNICA.md](DOCUMENTACION-TECNICA.md)**.
 Perfil judicial: **[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
 
 ```bash
@@ -151,10 +147,10 @@ python3 -m venv .venv
 PYTHONPATH=src .venv/bin/python -m documental.cli --help
 ```
 
-Comandos: `expediente`, `clasificar`, `preparar`, `procesar`, `revisor`, `informe`, `ordenar`, `compilar`.
+Comandos: `expediente`, `procesar`, `doctrina`, `jurisprudencia`, `actos`, `clasificar`, `preparar`, `revisor`, `informe`, `ordenar`, `compilar`.
 Requiere Python 3.10+.
 
-Perfil por defecto: **legal**. Para salud: `--perfil salud`, `DOCUMENTAL_PERFIL=salud` o `perfil.txt`.
+Modalidad por defecto: **judicial**. Las demás: `--perfil doctrina|jurisprudencia|administrativo`, `DOCUMENTAL_PERFIL=...` o `perfil.txt`.
 
 ```bash
 # Inventario rápido de una carpeta judicial, sin OCR
@@ -163,8 +159,8 @@ PYTHONPATH=src .venv/bin/python -m documental.cli clasificar "expediente/" --csv
 # Proceso completo del expediente judicial
 PYTHONPATH=src .venv/bin/python -m documental.cli expediente --ordenar
 
-# Modo salud (opcional)
-PYTHONPATH=src .venv/bin/python -m documental.cli expediente --perfil salud --ordenar
+# Una biblioteca de doctrina (un PDF = un item)
+PYTHONPATH=src .venv/bin/python -m documental.cli doctrina --carpeta "Mi biblioteca" --ordenar
 ```
 
 ### Generar el ejecutable (sin terminal para el usuario final)

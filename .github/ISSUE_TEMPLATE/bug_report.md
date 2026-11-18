@@ -19,7 +19,7 @@ Describe el problema en una o dos frases.
 
 - Sistema operativo: (Windows 10/11, Linux, macOS)
 - Versión de la app: (nombre del ZIP o versión del release)
-- Modo: judicial / salud
+- Modalidad: judicial / doctrina / jurisprudencia / actos administrativos
 - ¿Instalaste desde el ZIP o desde el código?
 
 ## Registro

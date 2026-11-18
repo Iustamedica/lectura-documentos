@@ -15,7 +15,7 @@ Describe la idea y para qué sirve en el trabajo diario.
 
 ## Alcance
 
-- ¿Aplica al modo judicial, al modo salud o a ambos?
+- ¿Aplica a la modalidad judicial, doctrina, jurisprudencia o actos administrativos?
 - ¿Es un tipo de documento nuevo? Indica el nombre y en qué se reconoce.
 - ¿Es una mejora de la app, del informe o de la documentación?
 
