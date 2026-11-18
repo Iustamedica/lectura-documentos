@@ -28,7 +28,8 @@ Todas las versiones relevantes del proyecto. Formato basado en
 - La modalidad **judicial** reemplaza al antiguo perfil `legal` (el alias `legal`
   se mantiene).
 - **Salud deja de ser una modalidad visible**: sus casos se reparten entre las
-  cuatro modalidades nuevas.
+  cuatro modalidades nuevas; se retiraron `Procesar salud` y `scripts/salud`.
+  Un `perfil.txt` antiguo con `salud` se interpreta como judicial.
 - Los PDF de jurisprudencia y actos administrativos se conservan completos y, si
   son escaneos, se OCR-ean solo las primeras páginas como muestra.
 - La ventana recuerda la modalidad detectada por la carpeta y el botón **Abrir
