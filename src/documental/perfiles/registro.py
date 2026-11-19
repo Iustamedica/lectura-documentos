@@ -18,6 +18,8 @@ ALIASES: dict[str, str] = {
     "legal": "judicial",
     "judicial": "judicial",
     "expediente": "judicial",
+    "juridico": "judicial",
+    "jurídico": "judicial",
     # Compatibilidad: configuraciones antiguas de salud caen en judicial.
     "salud": "judicial",
     "health": "judicial",

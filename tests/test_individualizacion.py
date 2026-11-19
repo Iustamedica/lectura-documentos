@@ -16,6 +16,7 @@ from documental.individualizacion import (
     filas,
 )
 from documental.models import CONF_ALTA, CONF_FALTA, Document, Field
+from documental.perfiles.salud import PerfilSalud
 
 
 def _doc(
@@ -135,13 +136,13 @@ class TestNumeracion:
 
     def test_un_grupo_toma_el_primer_valor_no_vacio(self):
         docs = [_doc(1, folio="123"), _doc(2, folio="123", tipo="Bono FONASA")]
-        grupo = agrupar(docs)[0]
+        grupo = agrupar(docs, PerfilSalud())[0]
         assert grupo.valor("tipo_documento") == "Bono FONASA"
         # El nombre del grupo es el canonico, no el encabezado del OCR.
         assert grupo.tipo == "Bono de atencion FONASA"
 
     def test_sin_tipo_usa_la_etiqueta_de_la_familia(self):
-        grupos = agrupar([_doc(1, familia="pagare")])
+        grupos = agrupar([_doc(1, familia="pagare")], PerfilSalud())
         assert grupos[0].tipo == "Pagare"
 
 
@@ -169,7 +170,8 @@ class TestTablaDeIndividualizacion:
                     tipo="Ticket de farmacia",
                     texto="FARMACIA CRUZ VERDE\nTICKET 999\nTOTAL $10.000",
                 ),
-            ]
+            ],
+            PerfilSalud(),
         )
 
     def test_una_fila_por_documento(self):

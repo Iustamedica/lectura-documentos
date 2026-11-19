@@ -13,6 +13,7 @@ from docx import Document as DocxDocument
 from documental.layout import build_lines, split_blocks
 from documental.models import CONF_ALTA, CONF_FALTA, Document, Expediente, Field
 from documental.ocr import Token
+from documental.perfiles.salud import PerfilSalud
 from documental.pipeline import (
     _attach_payment_voucher,
     _block_family,
@@ -41,7 +42,7 @@ class TestClasificacionYRuido:
         bloque = block_from_text(
             "TRANSBANK\nVENTA EXENTA- COPIA CLIENTE\nTARJETA-DE DEBITO\nMONTO VENTA: $17.070"
         )
-        familia, _, _ = _block_family(bloque)
+        familia, _, _ = _block_family(bloque, PerfilSalud())
         assert familia == "comprobante_pago"
 
     def test_receta_manuscrita_se_reconoce(self):
@@ -49,7 +50,7 @@ class TestClasificacionYRuido:
             "CENTRO OFTALMOLÓGICO VISION EN FAMILIA\nDr. Pablo Fuentes D.\n"
             "Oftalmólogo.\nRp. RUT: 11.111.111-1 ICM: 21.805-7\nT/Aont Nel Loneyal"
         )
-        familia, _, _ = _block_family(bloque)
+        familia, _, _ = _block_family(bloque, PerfilSalud())
         assert familia == "receta_manuscrita"
 
     def test_encabezado_suelto_es_ruido(self):
@@ -125,7 +126,9 @@ class TestExpedienteCompleto:
 
     def test_informe_word_se_genera(self, tmp_path):
         expediente = self._expediente()
-        destino = generar_informe(expediente, tmp_path / "informe.docx")
+        destino = generar_informe(
+            expediente, tmp_path / "informe.docx", perfil=PerfilSalud()
+        )
         assert destino.exists() and destino.stat().st_size > 5000
         word = DocxDocument(str(destino))
         texto = "\n".join(p.text for p in word.paragraphs)
@@ -145,7 +148,9 @@ class TestExpedienteCompleto:
                 TitularConfig(rut="", nombre="LUIS ANDRES SOTO PEREZ"),
             ],
         )
-        destino = generar_informe(expediente, tmp_path / "informe2.docx")
+        destino = generar_informe(
+            expediente, tmp_path / "informe2.docx", perfil=PerfilSalud()
+        )
         tablas = "\n".join(
             c.text for t in DocxDocument(str(destino)).tables for r in t.rows for c in r.cells
         )

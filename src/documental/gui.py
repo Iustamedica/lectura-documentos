@@ -21,10 +21,16 @@ def _base_dir() -> Path:
 
 
 def _carpeta_inicial() -> Path:
-    candidata = _base_dir() / "Expediente"
-    if candidata.exists():
-        return candidata
-    return Path.home() / "Expediente"
+    for nombre in (
+        "Expediente",
+        "Doctrina",
+        "Jurisprudencia",
+        "Actos administrativos",
+    ):
+        candidata = _base_dir() / nombre
+        if candidata.exists():
+            return candidata
+    return Path.home() / "Documentos"
 
 
 class _EscritorCola:
@@ -56,8 +62,8 @@ class Ventana:
         self.procesando = False
 
         root.title("Lector de documentos")
-        root.geometry("820x620")
-        root.minsize(720, 520)
+        root.geometry("860x720")
+        root.minsize(760, 620)
 
         marco = ttk.Frame(root, padding=16)
         marco.pack(fill="both", expand=True)
