@@ -41,13 +41,49 @@ El programa trabaja **dentro de la carpeta que eliges**: ahí crea `1. Documento
 
 **1) Instalar (una sola vez)**
 - **Windows:** doble clic en `instalar.bat`.
-- **Linux/Mac:** doble clic en `instalar.sh` (o `bash instalar.sh`).
+- **Linux:** doble clic en `instalar.sh` (o `bash instalar.sh`).
+- **macOS:** sigue la sección [macOS](#macos) más abajo.
 
 **2) Usar**
 1. Abre la carpeta **`Expediente`** (se crea sola).
 2. Copia tus **fotos y PDF** en **`Expediente/1. Documentos a procesar`**.
 3. Doble clic en **`Procesar documentos`** (o en `Lector de documentos` para la aplicación).
 4. Revisa **`Expediente/Resultados/Revision.html`** y **`Informe.docx`**.
+
+### macOS
+
+La aplicación funciona en Mac con **Apple Silicon** e **Intel**. Todavía no hay
+un ZIP firmado para Mac: se instala desde el código.
+
+1. **Instala Python 3.10 o superior**:
+   - Descárgalo de [python.org](https://www.python.org/downloads/macos/)
+     (incluye Tkinter), o
+   - con Homebrew:
+     ```bash
+     brew install python@3.12 python-tk@3.12
+     ```
+2. **Abre Terminal** en la carpeta del proyecto y da permisos:
+   ```bash
+   cd "/ruta/a/documental"
+   chmod +x instalar.sh "Lector de documentos.sh" "Procesar documentos.sh"
+   bash instalar.sh
+   ```
+3. Si macOS bloquea los archivos por provenir de internet:
+   ```bash
+   xattr -dr com.apple.quarantine .
+   ```
+4. **Abre la aplicación**:
+   ```bash
+   bash "Lector de documentos.sh"
+   ```
+   También puedes hacer doble clic si autorizas el archivo en **Ajustes del
+   Sistema → Privacidad y seguridad**.
+5. La primera vez, macOS puede pedir permiso para acceder a **Documentos** o al
+   Escritorio. Concédelo para que la app pueda leer y escribir en la carpeta de
+   trabajo.
+
+Los resultados quedan en `<carpeta elegida>/Resultados/`, igual que en Windows y
+Linux.
 
 📘 Catálogo, campos y límites del modo judicial: **[PERFIL-LEGAL.md](PERFIL-LEGAL.md)**.
 

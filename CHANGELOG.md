@@ -34,6 +34,9 @@ Todas las versiones relevantes del proyecto. Formato basado en
   son escaneos, se OCR-ean solo las primeras páginas como muestra.
 - La ventana recuerda la modalidad detectada por la carpeta y el botón **Abrir
   resultados** abre directamente `Revision.html`.
+- `instalar.sh` ahora verifica Python 3.10+, avisa si falta Tkinter y recrea el
+  `.venv` si quedó incompleto o cambió la versión de Python.
+- Se agregaron instrucciones de instalación para **macOS** en el README y el FAQ.
 
 ### Corregido
 - Los campos de cada modalidad se exportan al CSV y al informe Word, incluidos

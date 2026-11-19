@@ -30,8 +30,9 @@ Es un falso positivo habitual de los programas empaquetados con PyInstaller.
 Puedes agregar la carpeta a las exclusiones del antivirus.
 
 **¿Funciona en Mac?**
-El código es compatible, pero por ahora publicamos paquetes para **Windows** y
-**Linux**. En Mac se puede instalar desde el código (ver README).
+Sí, con Apple Silicon e Intel. No publicamos un ZIP firmado para Mac: se instala
+desde el código con `bash instalar.sh` (requiere Python 3.10+ y Tkinter). Los
+pasos completos están en la sección **macOS** del README.
 
 **¿Por qué el ZIP pesa ~200 MB?**
 Incluye Python, el motor de OCR (ONNX Runtime) y sus modelos. No requiere

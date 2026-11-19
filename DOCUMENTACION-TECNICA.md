@@ -150,6 +150,10 @@ empaquetar\empaquetar_windows.bat        # Windows
 PyInstaller genera `dist/LectorDeDocumentos/` con el intérprete, ONNX Runtime,
 los modelos de RapidOCR, la plantilla del revisor y `LICENSE`.
 
+En **macOS** no se publica ZIP: se instala con `instalar.sh` y Python 3.10+ (ver
+la sección macOS del README). PyInstaller no permite compilar un binario de macOS
+desde Linux; si se quiere un `.app`, el build debe ejecutarse en un Mac.
+
 El workflow `.github/workflows/empaquetar.yml` construye Windows y Linux al
 publicar un tag `v*` y adjunta los ZIP a la Release. El enlace estable es:
 
